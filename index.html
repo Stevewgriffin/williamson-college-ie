@@ -786,9 +786,17 @@ const FIREBASE_CONFIG = {
   appId: "1:936229493520:web:5d1afd7be2eab0b4346395"
 };
 
-firebase.initializeApp(FIREBASE_CONFIG);
-const auth = firebase.auth();
-const db = firebase.database();
+let auth, db;
+try {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  auth = firebase.auth();
+  db = firebase.database();
+} catch(e) {
+  console.warn('Firebase init failed:', e.message);
+  // Provide stubs so the rest of the app doesn't crash
+  auth = { signInAnonymously: () => Promise.resolve(), signOut: () => Promise.resolve() };
+  db = { ref: () => ({ once: () => Promise.resolve({val:()=>null}), set: () => Promise.resolve(), on: () => {}, push: () => ({set: () => Promise.resolve()}) }) };
+}
 
 // ============================================================
 // Williamson College IE Assessment System - Data Block
@@ -2136,6 +2144,588 @@ const BENCHMARKS = {
     "rationale": "Reflects 3.0 GPA (B average, 80%) minimum for graduate degree completion. Standard for master's-level programs across SACSCOC institutions."
   }
 };
+
+
+// ============================================================
+// MOBILE NAV
+// ============================================================
+function toggleMobileNav() {
+  document.getElementById('tabList').classList.toggle('open');
+}
+
+// Close mobile nav when a tab is clicked
+(function() {
+  const origSwitchTab = window.switchTab || function(){};
+  const newSwitchTab = function(tabName) {
+    document.getElementById('tabList').classList.remove('open');
+  };
+  // We'll just add the close to the existing switchTab
+})();
+
+// ============================================================
+// CATALOG FUNCTIONS
+// ============================================================
+function renderCatalog() {
+  const view = document.getElementById('catalogView').value;
+  const level = document.getElementById('catalogLevelFilter').value;
+  const search = (document.getElementById('catalogSearch').value || '').toLowerCase();
+  const container = document.getElementById('catalogContent');
+
+  if (view === 'programs') {
+    renderCatalogPrograms(container, level, search);
+  } else {
+    renderCatalogCourses(container, level, search);
+  }
+}
+
+function renderCatalogPrograms(container, level, search) {
+  let programs = PROGRAMS.filter(p => {
+    if (level !== 'all' && p.level !== level) return false;
+    if (search && !p.name.toLowerCase().includes(search) && !p.id.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  // Add mission & institutional goals header
+  let html = `
+    <div class="card" style="margin-bottom:20px;border-left:4px solid var(--gold)">
+      <h3 style="color:var(--maroon);margin-bottom:8px">Mission of Williamson College</h3>
+      <p style="font-size:0.95rem;line-height:1.6;font-style:italic">${INSTITUTION.mission}</p>
+      <div style="margin-top:12px">
+        <h4 style="font-size:0.85rem;color:var(--muted);margin-bottom:6px">Institutional Learning Outcomes (ILOs)</h4>
+        <ol style="font-size:0.85rem;line-height:1.6;padding-left:20px">
+          ${ILOs.map(ilo => `<li>${ilo.text}</li>`).join('')}
+        </ol>
+      </div>
+      <div style="margin-top:12px">
+        <h4 style="font-size:0.85rem;color:var(--muted);margin-bottom:6px">Institutional Goals for Students</h4>
+        <ol style="font-size:0.85rem;line-height:1.6;padding-left:20px">
+          ${INSTITUTION.institutionalGoals.forStudents.map(g => `<li>${g}</li>`).join('')}
+        </ol>
+      </div>
+    </div>
+    <div class="catalog-program-grid">
+  `;
+
+  programs.forEach(prog => {
+    const sloCount = prog.slos ? prog.slos.length : 0;
+    const courseCount = prog.courses ? prog.courses.length : 0;
+    const levelLabel = prog.level === 'ug' ? 'Undergraduate' : prog.level === 'grad' ? 'Graduate' : 'Certificate';
+    const hasBenchmark = prog.benchmarkPercent ? `<span style="font-size:0.75rem;color:var(--muted)">Benchmark: ${prog.benchmarkPercent}%</span>` : '';
+
+    html += `
+      <div class="catalog-program-card" onclick="openCatalogProgram('${prog.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span class="level-badge ${prog.level}">${levelLabel}</span>
+          ${hasBenchmark}
+        </div>
+        <h3 style="margin:8px 0 4px;font-size:1.05rem;color:var(--maroon)">${prog.name}</h3>
+        <p style="font-size:0.8rem;color:var(--muted);margin:0">${prog.school} · ${prog.credits} credits · ${prog.chair || ''}</p>
+        <div style="margin-top:12px;display:flex;gap:16px">
+          <span style="font-size:0.8rem"><strong>${sloCount}</strong> PLOs</span>
+          <span style="font-size:0.8rem"><strong>${courseCount}</strong> Courses</span>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function openCatalogProgram(progId) {
+  const prog = PROGRAMS.find(p => p.id === progId);
+  if (!prog) return;
+
+  const container = document.getElementById('catalogContent');
+  let html = `
+    <button onclick="renderCatalog()" style="margin-bottom:16px;background:none;border:1px solid var(--maroon);color:var(--maroon);padding:6px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem">&larr; Back to Programs</button>
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px">
+        <div>
+          <span class="level-badge ${prog.level}" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;text-transform:uppercase;${prog.level==='ug'?'background:#e8f5e9;color:#2e7d32':'background:#e3f2fd;color:#1565c0'}">${prog.level === 'ug' ? 'Undergraduate' : 'Graduate'}</span>
+          <h2 style="margin:8px 0 4px">${prog.name}</h2>
+          <p style="color:var(--muted);font-size:0.9rem">${prog.school} &middot; ${prog.credits} credits &middot; Chair: ${prog.chair || 'TBD'}</p>
+        </div>
+        ${prog.benchmarkPercent ? `<div style="text-align:right"><span style="font-size:0.8rem;color:var(--muted)">Assessment Benchmark</span><br><strong style="font-size:1.2rem;color:var(--maroon)">${prog.benchmarkPercent}%</strong></div>` : ''}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="margin-bottom:12px;color:var(--maroon)">Program Learning Outcomes (PLOs)</h3>
+  `;
+
+  if (prog.slos) {
+    prog.slos.forEach((slo, i) => {
+      html += `
+        <div style="padding:10px 0;border-bottom:1px solid #f0f0f0">
+          <span style="font-weight:700;color:var(--maroon);font-size:0.8rem">${slo.id || `PLO ${i+1}`}</span>
+          ${slo.name ? `<span style="font-weight:600;margin-left:8px">${slo.name}</span>` : ''}
+          <p style="font-size:0.9rem;margin:4px 0 0;color:#444">${slo.text}</p>
+        </div>
+      `;
+    });
+  }
+
+  html += `</div><div class="card"><h3 style="margin-bottom:12px;color:var(--maroon)">Courses</h3><p style="font-size:0.85rem;color:var(--muted);margin-bottom:12px">Click any course to see SLOs and the alignment cascade (Course SLO &rarr; PLO &rarr; ILO &rarr; Mission)</p><div class="catalog-course-list">`;
+
+  if (prog.courses) {
+    prog.courses.forEach(c => {
+      const courseKey = c.id.replace(/[^A-Za-z0-9]/g, '');
+      const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
+      const sloCount = courseData ? courseData.slos.length : 0;
+      const sloPreview = courseData && courseData.slos[0] ? courseData.slos[0].text.substring(0, 80) + '...' : '';
+
+      html += `
+        <div class="catalog-course-card">
+          <span class="course-code">${c.code || c.id}</span>
+          <div class="course-name">${c.name}</div>
+          <span class="course-credits">${c.cr} credits${c.category ? ' &middot; ' + c.category : ''}</span>
+          ${sloCount > 0 ? `
+            <div class="slo-peek">${sloCount} SLOs &middot; ${sloPreview}</div>
+            <button class="view-slos-btn" onclick="event.stopPropagation();openDrilldown('${courseKey}','${prog.id}')">View SLO Cascade &nearr;</button>
+          ` : ''}
+        </div>
+      `;
+    });
+  }
+
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+function renderCatalogCourses(container, level, search) {
+  if (typeof COURSE_SLOS === 'undefined') {
+    container.innerHTML = '<p style="color:var(--muted)">No course SLO data available.</p>';
+    return;
+  }
+
+  let courses = Object.entries(COURSE_SLOS).map(([key, c]) => ({...c, key}));
+
+  if (search) {
+    courses = courses.filter(c =>
+      (c.code || '').toLowerCase().includes(search) ||
+      (c.title || '').toLowerCase().includes(search) ||
+      c.slos.some(s => s.text.toLowerCase().includes(search))
+    );
+  }
+
+  // Group by category
+  const groups = {};
+  courses.forEach(c => {
+    const cat = c.category || 'other';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(c);
+  });
+
+  const catLabels = {
+    core: 'BSBA Core Courses', maol_core: 'MAOL Core Courses',
+    accounting_minor: 'Accounting Minor', nonprofit_minor: 'Nonprofit Minor',
+    elective: 'Electives', character_cert: 'Character Certificate',
+    internship: 'Internship', other: 'Other'
+  };
+
+  let html = '';
+  Object.entries(groups).forEach(([cat, courses]) => {
+    html += `<h3 style="margin:20px 0 12px;color:var(--maroon);border-bottom:2px solid var(--gold);padding-bottom:6px">${catLabels[cat] || cat} (${courses.length})</h3><div class="catalog-course-list">`;
+    courses.forEach(c => {
+      const prog = c.program === 'bsba' ? 'BSBA' : c.program === 'maol' ? 'MAOL' : (c.program || '').toUpperCase();
+      html += `
+        <div class="catalog-course-card">
+          <span class="course-code">${c.code}</span>
+          <div class="course-name">${c.title}</div>
+          <span class="course-credits">${c.credits} credits &middot; ${prog}</span>
+          <div class="slo-peek">${c.slos.length} SLOs</div>
+          <button class="view-slos-btn" onclick="openDrilldown('${c.key}','${prog}')">View SLO Cascade &nearr;</button>
+        </div>
+      `;
+    });
+    html += '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+// ============================================================
+// SLO DRILL-DOWN CASCADE
+// ============================================================
+function openDrilldown(courseKey, progId) {
+  console.log('openDrilldown called with:', courseKey, progId);
+  console.log('COURSE_SLOS keys sample:', Object.keys(COURSE_SLOS).slice(0,5));
+  console.log('Looking up key:', courseKey, '=> found:', !!COURSE_SLOS[courseKey]);
+  const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
+  if (!courseData) { showToast('No SLO data available for this course (key: ' + courseKey + ')'); return; }
+
+  const prog = PROGRAMS.find(p => p.id === progId || p.id.toLowerCase() === progId.toLowerCase());
+
+  document.getElementById('drilldownTitle').textContent = `${courseData.code} \u2014 ${courseData.title}`;
+
+  let html = `
+    <div class="cascade-flow">
+      <div class="cascade-box mission">
+        <h4>Mission</h4>
+        <p style="font-size:0.8rem">${INSTITUTION.mission}</p>
+      </div>
+      <div class="cascade-arrow">&rarr;</div>
+      <div class="cascade-box ilo">
+        <h4>ILOs</h4>
+        <ul style="padding-left:16px;margin:0">
+          ${ILOs.map(ilo => `<li style="font-size:0.78rem;margin-bottom:2px">${ilo.id}: ${ilo.text}</li>`).join('')}
+        </ul>
+      </div>
+      <div class="cascade-arrow">&rarr;</div>
+      <div class="cascade-box plo">
+        <h4>Program PLOs${prog ? ` (${prog.id})` : ''}</h4>
+        <ul style="padding-left:16px;margin:0">
+          ${prog && prog.slos ? prog.slos.map(s => `<li style="font-size:0.78rem;margin-bottom:2px"><strong>${s.name || s.id}:</strong> ${s.text}</li>`).join('') : '<li>N/A</li>'}
+        </ul>
+      </div>
+    </div>
+    <h4 style="margin:20px 0 12px;color:var(--maroon)">Course-Level Student Learning Outcomes</h4>
+  `;
+
+  courseData.slos.forEach(slo => {
+    html += `
+      <div class="slo-item">
+        <span class="slo-num">SLO ${slo.number}</span>
+        <p class="slo-text">${slo.text}</p>
+      </div>
+    `;
+  });
+
+  // Assessment instruments if available
+  if (typeof ASSESSMENT_INSTRUMENTS !== 'undefined' && prog) {
+    const progKey = prog.id.toLowerCase();
+    const instruments = ASSESSMENT_INSTRUMENTS[progKey];
+    if (instruments) {
+      html += `<h4 style="margin:20px 0 12px;color:var(--maroon)">Assessment Instruments</h4>`;
+      instruments.forEach(inst => {
+        const relevant = inst.courses.some(ic => ic.courseCode.replace(/\s/g,'') === courseData.code.replace(/\s/g,''));
+        if (relevant) {
+          const courseInst = inst.courses.find(ic => ic.courseCode.replace(/\s/g,'') === courseData.code.replace(/\s/g,''));
+          html += `<div style="background:#f8f9fa;padding:10px;border-radius:8px;margin-bottom:8px;font-size:0.85rem"><strong>${inst.ploId}:</strong> ${courseInst ? courseInst.instrument : 'See rubric'}</div>`;
+        }
+      });
+    }
+  }
+
+  document.getElementById('drilldownContent').innerHTML = html;
+  document.getElementById('sloDrilldownModal').style.display = 'flex';
+}
+
+function closeDrilldown() {
+  document.getElementById('sloDrilldownModal').style.display = 'none';
+}
+
+// ============================================================
+// FACULTY REPORT FUNCTIONS
+// ============================================================
+function populateFRPrograms() {
+  const sel = document.getElementById('frProgram');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select Program...</option>';
+  PROGRAMS.forEach(p => {
+    sel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+  });
+}
+
+function populateFRCourses() {
+  const progId = document.getElementById('frProgram').value;
+  const sel = document.getElementById('frCourse');
+  sel.innerHTML = '<option value="">Select Course...</option>';
+  document.getElementById('facultyReportForm').innerHTML = '';
+
+  if (!progId) return;
+  const prog = PROGRAMS.find(p => p.id === progId);
+  if (!prog || !prog.courses) return;
+
+  prog.courses.forEach(c => {
+    const courseKey = c.id.replace(/[^A-Za-z0-9]/g, '');
+    const hasSLOs = COURSE_SLOS && COURSE_SLOS[courseKey];
+    sel.innerHTML += `<option value="${courseKey}">${c.code || c.id} \u2014 ${c.name}${hasSLOs ? ' \u2713' : ''}</option>`;
+  });
+}
+
+function loadFacultyReportForm() {
+  const progId = document.getElementById('frProgram').value;
+  const courseKey = document.getElementById('frCourse').value;
+  const term = document.getElementById('frTerm').value;
+  const container = document.getElementById('facultyReportForm');
+
+  if (!progId || !courseKey) { container.innerHTML = ''; return; }
+
+  const prog = PROGRAMS.find(p => p.id === progId);
+  const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
+
+  if (!courseData) {
+    container.innerHTML = '<div class="fr-card"><p style="color:var(--muted)">No SLO data available for this course. SLOs must be defined before a report can be generated.</p></div>';
+    return;
+  }
+
+  const benchmark = prog && prog.benchmarkPercent ? prog.benchmarkPercent : 70;
+
+  let html = `
+    <div class="fr-card">
+      <h3 style="color:var(--maroon);margin-bottom:4px">Faculty Course Exit Report</h3>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Direct Assessment and Closing-the-Loop Instrument</p>
+      <div class="fr-header">
+        <div class="form-group"><label>Course</label><input type="text" value="${courseData.code} \u2014 ${courseData.title}" readonly></div>
+        <div class="form-group"><label>Term / Year</label><input type="text" value="${term}" readonly></div>
+        <div class="form-group"><label>Instructor</label><input type="text" id="frInstructor" placeholder="Enter instructor name"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label style="font-size:0.8rem;font-weight:600;color:var(--muted)">Enrollment</label><input type="number" id="frEnrollment" placeholder="Number of students" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;width:200px"></div>
+
+      <table class="fr-slo-table">
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:35%">Student Learning Outcome</th>
+            <th style="width:20%">Assessment Instrument</th>
+            <th style="width:10%">Benchmark</th>
+            <th style="width:10%">% Met</th>
+            <th style="width:10%">Met?</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  courseData.slos.forEach(slo => {
+    html += `
+      <tr>
+        <td><strong>${slo.number}</strong></td>
+        <td>${slo.text}</td>
+        <td><input type="text" id="fr_inst_${slo.id}" placeholder="e.g., Research paper, Exam"></td>
+        <td style="text-align:center">${benchmark}%</td>
+        <td><input type="number" id="fr_pct_${slo.id}" min="0" max="100" placeholder="%" style="width:70px" onchange="updateFRMet('${slo.id}',${benchmark})"></td>
+        <td style="text-align:center" id="fr_met_${slo.id}">\u2014</td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+
+      <div class="fr-analysis">
+        <label>1. For any SLO where fewer than ${benchmark}% of students met the benchmark, explain the possible reasons:</label>
+        <textarea id="frAnalysis1" placeholder="Explain factors contributing to underperformance..."></textarea>
+
+        <label>2. What specific changes do you plan to implement next term to improve student achievement on these SLOs?</label>
+        <textarea id="frAnalysis2" placeholder="Describe planned curricular or pedagogical changes..."></textarea>
+
+        <label>3. If changes were made based on prior assessment results, what evidence of improvement (or lack thereof) do you see?</label>
+        <textarea id="frAnalysis3" placeholder="Describe evidence of improvement from prior closing-the-loop actions..."></textarea>
+      </div>
+
+      <div class="fr-signatures">
+        <div>
+          <input type="text" id="frFacultySig" placeholder="">
+          <label>Faculty Signature / Date</label>
+        </div>
+        <div>
+          <input type="text" id="frChairSig" placeholder="">
+          <label>Department Chair Signature / Date</label>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn" style="background:var(--maroon);color:white;padding:10px 24px;border:none;border-radius:8px;cursor:pointer;font-weight:600" onclick="saveFacultyReport('${progId}','${courseKey}','${term}')">Save Report to Firebase</button>
+        <button class="btn" style="background:var(--gold);color:white;padding:10px 24px;border:none;border-radius:8px;cursor:pointer;font-weight:600" onclick="printFacultyReport()">Print / Export</button>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+}
+
+function updateFRMet(sloId, benchmark) {
+  const pct = parseFloat(document.getElementById(`fr_pct_${sloId}`).value) || 0;
+  const metEl = document.getElementById(`fr_met_${sloId}`);
+  if (pct >= benchmark) {
+    metEl.innerHTML = '<span style="color:var(--success);font-weight:700">\u2713 Yes</span>';
+  } else {
+    metEl.innerHTML = '<span style="color:var(--danger);font-weight:700">\u2717 No</span>';
+  }
+}
+
+function saveFacultyReport(progId, courseKey, term) {
+  const courseData = COURSE_SLOS[courseKey];
+  if (!courseData) return;
+
+  const report = {
+    program: progId,
+    course: courseKey,
+    courseCode: courseData.code,
+    courseTitle: courseData.title,
+    term: term,
+    instructor: document.getElementById('frInstructor').value,
+    enrollment: document.getElementById('frEnrollment').value,
+    sloResults: [],
+    analysis: {
+      belowBenchmark: document.getElementById('frAnalysis1').value,
+      plannedChanges: document.getElementById('frAnalysis2').value,
+      priorImprovement: document.getElementById('frAnalysis3').value
+    },
+    facultySignature: document.getElementById('frFacultySig').value,
+    chairSignature: document.getElementById('frChairSig').value,
+    submittedAt: new Date().toISOString(),
+    submittedBy: currentUserName
+  };
+
+  courseData.slos.forEach(slo => {
+    report.sloResults.push({
+      sloId: slo.id,
+      sloNumber: slo.number,
+      sloText: slo.text,
+      instrument: document.getElementById(`fr_inst_${slo.id}`)?.value || '',
+      percentMet: document.getElementById(`fr_pct_${slo.id}`)?.value || '',
+    });
+  });
+
+  const termKey = term.replace(/\s/g, '_');
+  db.ref(`facultyReports/${progId}/${courseKey}/${termKey}`).set(report)
+    .then(() => showToast('Faculty report saved successfully!'))
+    .catch(err => showToast('Error saving report: ' + err.message));
+}
+
+function printFacultyReport() {
+  window.print();
+}
+
+// ============================================================
+// DATA FILING SYSTEM FOR SACSCOC
+// ============================================================
+function loadDataFiling() {
+  const container = document.getElementById('dataFilingDashboard');
+  container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem">Loading data completeness...</p>';
+
+  // Check Firebase for existing data
+  Promise.all([
+    db.ref('surveyResponses').once('value'),
+    db.ref('facultyReports').once('value'),
+    db.ref('gaswData').once('value'),
+    db.ref('institutionalData').once('value'),
+    db.ref('mappings').once('value'),
+    db.ref('populiImports').once('value')
+  ]).then(([surveys, facReports, gasw, instData, maps, populi]) => {
+    const surveyCount = surveys.val() ? Object.keys(surveys.val()).length : 0;
+    const reportCount = facReports.val() ? countNestedKeys(facReports.val()) : 0;
+    const gaswCount = gasw.val() ? countNestedKeys(gasw.val()) : 0;
+    const instMonths = instData.val() ? countNestedKeys(instData.val()) : 0;
+    const mappingCount = maps.val() ? Object.keys(maps.val()).length : 0;
+    const importCount = populi.val() ? Object.keys(populi.val()).length : 0;
+
+    const totalCourses = typeof COURSE_SLOS !== 'undefined' ? Object.keys(COURSE_SLOS).length : 0;
+    const totalSLOs = typeof COURSE_SLOS !== 'undefined' ? Object.values(COURSE_SLOS).reduce((sum, c) => sum + c.slos.length, 0) : 0;
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:var(--maroon)">${totalCourses}</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Courses with SLOs</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:var(--maroon)">${totalSLOs}</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Total Course SLOs</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${surveyCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${surveyCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">Survey Responses</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${reportCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${reportCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">Faculty Exit Reports</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${gaswCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${gaswCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">GASW Records</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${mappingCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${mappingCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">Program Mappings</div>
+        </div>
+      </div>
+
+      <h4 style="margin:16px 0 8px;color:var(--maroon)">SACSCOC Evidence Categories</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+        <thead>
+          <tr style="background:var(--maroon);color:white">
+            <th style="padding:10px 12px;text-align:left">Category</th>
+            <th style="padding:10px 12px;text-align:left">Standard</th>
+            <th style="padding:10px 12px;text-align:center">Status</th>
+            <th style="padding:10px 12px;text-align:center">Records</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Program Learning Outcomes</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
+            <td style="padding:10px 12px;text-align:center">${PROGRAMS.length} programs, ${PROGRAMS.reduce((s,p) => s + (p.slos?.length||0), 0)} PLOs</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
+            <td style="padding:10px 12px;font-weight:600">Course-Level SLOs</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
+            <td style="padding:10px 12px;text-align:center">${totalCourses} courses, ${totalSLOs} SLOs</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Student Indirect Assessment (Surveys)</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center">${surveyCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${surveyCount} responses</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
+            <td style="padding:10px 12px;font-weight:600">Faculty Direct Assessment (Exit Reports)</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center">${reportCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${reportCount} reports</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Closing the Loop (GASW)</td>
+            <td style="padding:10px 12px">8.2.b</td>
+            <td style="padding:10px 12px;text-align:center">${gaswCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${gaswCount} records</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
+            <td style="padding:10px 12px;font-weight:600">Assessment Instruments & Rubrics</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
+            <td style="padding:10px 12px;text-align:center">BSBA + MAOL capstone rubrics</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Institutional Data</td>
+            <td style="padding:10px 12px">IE Support</td>
+            <td style="padding:10px 12px;text-align:center">${instMonths > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${instMonths} month(s)</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }).catch(err => {
+    container.innerHTML = `<p style="color:var(--danger)">Error loading data: ${err.message}. Please ensure you are logged in.</p>`;
+  });
+}
+
+function countNestedKeys(obj) {
+  let count = 0;
+  if (typeof obj === 'object' && obj !== null) {
+    Object.values(obj).forEach(v => {
+      if (typeof v === 'object' && v !== null) {
+        count += Object.keys(v).length;
+      } else {
+        count++;
+      }
+    });
+  }
+  return count;
+}
 
 
 // ============================================================
@@ -5115,584 +5705,6 @@ document.addEventListener("DOMContentLoaded", function() {
     };
   }
 });
-
-// ============================================================
-// MOBILE NAV
-// ============================================================
-function toggleMobileNav() {
-  document.getElementById('tabList').classList.toggle('open');
-}
-
-// Close mobile nav when a tab is clicked
-(function() {
-  const origSwitchTab = window.switchTab || function(){};
-  const newSwitchTab = function(tabName) {
-    document.getElementById('tabList').classList.remove('open');
-  };
-  // We'll just add the close to the existing switchTab
-})();
-
-// ============================================================
-// CATALOG FUNCTIONS
-// ============================================================
-function renderCatalog() {
-  const view = document.getElementById('catalogView').value;
-  const level = document.getElementById('catalogLevelFilter').value;
-  const search = (document.getElementById('catalogSearch').value || '').toLowerCase();
-  const container = document.getElementById('catalogContent');
-
-  if (view === 'programs') {
-    renderCatalogPrograms(container, level, search);
-  } else {
-    renderCatalogCourses(container, level, search);
-  }
-}
-
-function renderCatalogPrograms(container, level, search) {
-  let programs = PROGRAMS.filter(p => {
-    if (level !== 'all' && p.level !== level) return false;
-    if (search && !p.name.toLowerCase().includes(search) && !p.id.toLowerCase().includes(search)) return false;
-    return true;
-  });
-
-  // Add mission & institutional goals header
-  let html = `
-    <div class="card" style="margin-bottom:20px;border-left:4px solid var(--gold)">
-      <h3 style="color:var(--maroon);margin-bottom:8px">Mission of Williamson College</h3>
-      <p style="font-size:0.95rem;line-height:1.6;font-style:italic">${INSTITUTION.mission}</p>
-      <div style="margin-top:12px">
-        <h4 style="font-size:0.85rem;color:var(--muted);margin-bottom:6px">Institutional Learning Outcomes (ILOs)</h4>
-        <ol style="font-size:0.85rem;line-height:1.6;padding-left:20px">
-          ${ILOs.map(ilo => `<li>${ilo.text}</li>`).join('')}
-        </ol>
-      </div>
-      <div style="margin-top:12px">
-        <h4 style="font-size:0.85rem;color:var(--muted);margin-bottom:6px">Institutional Goals for Students</h4>
-        <ol style="font-size:0.85rem;line-height:1.6;padding-left:20px">
-          ${INSTITUTION.institutionalGoals.forStudents.map(g => `<li>${g}</li>`).join('')}
-        </ol>
-      </div>
-    </div>
-    <div class="catalog-program-grid">
-  `;
-
-  programs.forEach(prog => {
-    const sloCount = prog.slos ? prog.slos.length : 0;
-    const courseCount = prog.courses ? prog.courses.length : 0;
-    const levelLabel = prog.level === 'ug' ? 'Undergraduate' : prog.level === 'grad' ? 'Graduate' : 'Certificate';
-    const hasBenchmark = prog.benchmarkPercent ? `<span style="font-size:0.75rem;color:var(--muted)">Benchmark: ${prog.benchmarkPercent}%</span>` : '';
-
-    html += `
-      <div class="catalog-program-card" onclick="openCatalogProgram('${prog.id}')">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span class="level-badge ${prog.level}">${levelLabel}</span>
-          ${hasBenchmark}
-        </div>
-        <h3 style="margin:8px 0 4px;font-size:1.05rem;color:var(--maroon)">${prog.name}</h3>
-        <p style="font-size:0.8rem;color:var(--muted);margin:0">${prog.school} · ${prog.credits} credits · ${prog.chair || ''}</p>
-        <div style="margin-top:12px;display:flex;gap:16px">
-          <span style="font-size:0.8rem"><strong>${sloCount}</strong> PLOs</span>
-          <span style="font-size:0.8rem"><strong>${courseCount}</strong> Courses</span>
-        </div>
-      </div>
-    `;
-  });
-
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-function openCatalogProgram(progId) {
-  const prog = PROGRAMS.find(p => p.id === progId);
-  if (!prog) return;
-
-  const container = document.getElementById('catalogContent');
-  let html = `
-    <button onclick="renderCatalog()" style="margin-bottom:16px;background:none;border:1px solid var(--maroon);color:var(--maroon);padding:6px 16px;border-radius:6px;cursor:pointer;font-size:0.85rem">&larr; Back to Programs</button>
-    <div class="card" style="margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px">
-        <div>
-          <span class="level-badge ${prog.level}" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.7rem;font-weight:600;text-transform:uppercase;${prog.level==='ug'?'background:#e8f5e9;color:#2e7d32':'background:#e3f2fd;color:#1565c0'}">${prog.level === 'ug' ? 'Undergraduate' : 'Graduate'}</span>
-          <h2 style="margin:8px 0 4px">${prog.name}</h2>
-          <p style="color:var(--muted);font-size:0.9rem">${prog.school} &middot; ${prog.credits} credits &middot; Chair: ${prog.chair || 'TBD'}</p>
-        </div>
-        ${prog.benchmarkPercent ? `<div style="text-align:right"><span style="font-size:0.8rem;color:var(--muted)">Assessment Benchmark</span><br><strong style="font-size:1.2rem;color:var(--maroon)">${prog.benchmarkPercent}%</strong></div>` : ''}
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:16px">
-      <h3 style="margin-bottom:12px;color:var(--maroon)">Program Learning Outcomes (PLOs)</h3>
-  `;
-
-  if (prog.slos) {
-    prog.slos.forEach((slo, i) => {
-      html += `
-        <div style="padding:10px 0;border-bottom:1px solid #f0f0f0">
-          <span style="font-weight:700;color:var(--maroon);font-size:0.8rem">${slo.id || `PLO ${i+1}`}</span>
-          ${slo.name ? `<span style="font-weight:600;margin-left:8px">${slo.name}</span>` : ''}
-          <p style="font-size:0.9rem;margin:4px 0 0;color:#444">${slo.text}</p>
-        </div>
-      `;
-    });
-  }
-
-  html += `</div><div class="card"><h3 style="margin-bottom:12px;color:var(--maroon)">Courses</h3><p style="font-size:0.85rem;color:var(--muted);margin-bottom:12px">Click any course to see SLOs and the alignment cascade (Course SLO &rarr; PLO &rarr; ILO &rarr; Mission)</p><div class="catalog-course-list">`;
-
-  if (prog.courses) {
-    prog.courses.forEach(c => {
-      const courseKey = c.id.replace(/[^A-Za-z0-9]/g, '');
-      const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
-      const sloCount = courseData ? courseData.slos.length : 0;
-      const sloPreview = courseData && courseData.slos[0] ? courseData.slos[0].text.substring(0, 80) + '...' : '';
-
-      html += `
-        <div class="catalog-course-card">
-          <span class="course-code">${c.code || c.id}</span>
-          <div class="course-name">${c.name}</div>
-          <span class="course-credits">${c.cr} credits${c.category ? ' &middot; ' + c.category : ''}</span>
-          ${sloCount > 0 ? `
-            <div class="slo-peek">${sloCount} SLOs &middot; ${sloPreview}</div>
-            <button class="view-slos-btn" onclick="event.stopPropagation();openDrilldown('${courseKey}','${prog.id}')">View SLO Cascade &nearr;</button>
-          ` : ''}
-        </div>
-      `;
-    });
-  }
-
-  html += '</div></div>';
-  container.innerHTML = html;
-}
-
-function renderCatalogCourses(container, level, search) {
-  if (typeof COURSE_SLOS === 'undefined') {
-    container.innerHTML = '<p style="color:var(--muted)">No course SLO data available.</p>';
-    return;
-  }
-
-  let courses = Object.entries(COURSE_SLOS).map(([key, c]) => ({...c, key}));
-
-  if (search) {
-    courses = courses.filter(c =>
-      (c.code || '').toLowerCase().includes(search) ||
-      (c.title || '').toLowerCase().includes(search) ||
-      c.slos.some(s => s.text.toLowerCase().includes(search))
-    );
-  }
-
-  // Group by category
-  const groups = {};
-  courses.forEach(c => {
-    const cat = c.category || 'other';
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(c);
-  });
-
-  const catLabels = {
-    core: 'BSBA Core Courses', maol_core: 'MAOL Core Courses',
-    accounting_minor: 'Accounting Minor', nonprofit_minor: 'Nonprofit Minor',
-    elective: 'Electives', character_cert: 'Character Certificate',
-    internship: 'Internship', other: 'Other'
-  };
-
-  let html = '';
-  Object.entries(groups).forEach(([cat, courses]) => {
-    html += `<h3 style="margin:20px 0 12px;color:var(--maroon);border-bottom:2px solid var(--gold);padding-bottom:6px">${catLabels[cat] || cat} (${courses.length})</h3><div class="catalog-course-list">`;
-    courses.forEach(c => {
-      const prog = c.program === 'bsba' ? 'BSBA' : c.program === 'maol' ? 'MAOL' : (c.program || '').toUpperCase();
-      html += `
-        <div class="catalog-course-card">
-          <span class="course-code">${c.code}</span>
-          <div class="course-name">${c.title}</div>
-          <span class="course-credits">${c.credits} credits &middot; ${prog}</span>
-          <div class="slo-peek">${c.slos.length} SLOs</div>
-          <button class="view-slos-btn" onclick="openDrilldown('${c.key}','${prog}')">View SLO Cascade &nearr;</button>
-        </div>
-      `;
-    });
-    html += '</div>';
-  });
-
-  container.innerHTML = html;
-}
-
-// ============================================================
-// SLO DRILL-DOWN CASCADE
-// ============================================================
-function openDrilldown(courseKey, progId) {
-  const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
-  if (!courseData) { showToast('No SLO data available for this course'); return; }
-
-  const prog = PROGRAMS.find(p => p.id === progId || p.id.toLowerCase() === progId.toLowerCase());
-
-  document.getElementById('drilldownTitle').textContent = `${courseData.code} \u2014 ${courseData.title}`;
-
-  let html = `
-    <div class="cascade-flow">
-      <div class="cascade-box mission">
-        <h4>Mission</h4>
-        <p style="font-size:0.8rem">${INSTITUTION.mission}</p>
-      </div>
-      <div class="cascade-arrow">&rarr;</div>
-      <div class="cascade-box ilo">
-        <h4>ILOs</h4>
-        <ul style="padding-left:16px;margin:0">
-          ${ILOs.map(ilo => `<li style="font-size:0.78rem;margin-bottom:2px">${ilo.id}: ${ilo.text}</li>`).join('')}
-        </ul>
-      </div>
-      <div class="cascade-arrow">&rarr;</div>
-      <div class="cascade-box plo">
-        <h4>Program PLOs${prog ? ` (${prog.id})` : ''}</h4>
-        <ul style="padding-left:16px;margin:0">
-          ${prog && prog.slos ? prog.slos.map(s => `<li style="font-size:0.78rem;margin-bottom:2px"><strong>${s.name || s.id}:</strong> ${s.text}</li>`).join('') : '<li>N/A</li>'}
-        </ul>
-      </div>
-    </div>
-    <h4 style="margin:20px 0 12px;color:var(--maroon)">Course-Level Student Learning Outcomes</h4>
-  `;
-
-  courseData.slos.forEach(slo => {
-    html += `
-      <div class="slo-item">
-        <span class="slo-num">SLO ${slo.number}</span>
-        <p class="slo-text">${slo.text}</p>
-      </div>
-    `;
-  });
-
-  // Assessment instruments if available
-  if (typeof ASSESSMENT_INSTRUMENTS !== 'undefined' && prog) {
-    const progKey = prog.id.toLowerCase();
-    const instruments = ASSESSMENT_INSTRUMENTS[progKey];
-    if (instruments) {
-      html += `<h4 style="margin:20px 0 12px;color:var(--maroon)">Assessment Instruments</h4>`;
-      instruments.forEach(inst => {
-        const relevant = inst.courses.some(ic => ic.courseCode.replace(/\s/g,'') === courseData.code.replace(/\s/g,''));
-        if (relevant) {
-          const courseInst = inst.courses.find(ic => ic.courseCode.replace(/\s/g,'') === courseData.code.replace(/\s/g,''));
-          html += `<div style="background:#f8f9fa;padding:10px;border-radius:8px;margin-bottom:8px;font-size:0.85rem"><strong>${inst.ploId}:</strong> ${courseInst ? courseInst.instrument : 'See rubric'}</div>`;
-        }
-      });
-    }
-  }
-
-  document.getElementById('drilldownContent').innerHTML = html;
-  document.getElementById('sloDrilldownModal').style.display = 'flex';
-}
-
-function closeDrilldown() {
-  document.getElementById('sloDrilldownModal').style.display = 'none';
-}
-
-// ============================================================
-// FACULTY REPORT FUNCTIONS
-// ============================================================
-function populateFRPrograms() {
-  const sel = document.getElementById('frProgram');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Select Program...</option>';
-  PROGRAMS.forEach(p => {
-    sel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
-  });
-}
-
-function populateFRCourses() {
-  const progId = document.getElementById('frProgram').value;
-  const sel = document.getElementById('frCourse');
-  sel.innerHTML = '<option value="">Select Course...</option>';
-  document.getElementById('facultyReportForm').innerHTML = '';
-
-  if (!progId) return;
-  const prog = PROGRAMS.find(p => p.id === progId);
-  if (!prog || !prog.courses) return;
-
-  prog.courses.forEach(c => {
-    const courseKey = c.id.replace(/[^A-Za-z0-9]/g, '');
-    const hasSLOs = COURSE_SLOS && COURSE_SLOS[courseKey];
-    sel.innerHTML += `<option value="${courseKey}">${c.code || c.id} \u2014 ${c.name}${hasSLOs ? ' \u2713' : ''}</option>`;
-  });
-}
-
-function loadFacultyReportForm() {
-  const progId = document.getElementById('frProgram').value;
-  const courseKey = document.getElementById('frCourse').value;
-  const term = document.getElementById('frTerm').value;
-  const container = document.getElementById('facultyReportForm');
-
-  if (!progId || !courseKey) { container.innerHTML = ''; return; }
-
-  const prog = PROGRAMS.find(p => p.id === progId);
-  const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
-
-  if (!courseData) {
-    container.innerHTML = '<div class="fr-card"><p style="color:var(--muted)">No SLO data available for this course. SLOs must be defined before a report can be generated.</p></div>';
-    return;
-  }
-
-  const benchmark = prog && prog.benchmarkPercent ? prog.benchmarkPercent : 70;
-
-  let html = `
-    <div class="fr-card">
-      <h3 style="color:var(--maroon);margin-bottom:4px">Faculty Course Exit Report</h3>
-      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">Direct Assessment and Closing-the-Loop Instrument</p>
-      <div class="fr-header">
-        <div class="form-group"><label>Course</label><input type="text" value="${courseData.code} \u2014 ${courseData.title}" readonly></div>
-        <div class="form-group"><label>Term / Year</label><input type="text" value="${term}" readonly></div>
-        <div class="form-group"><label>Instructor</label><input type="text" id="frInstructor" placeholder="Enter instructor name"></div>
-      </div>
-      <div class="form-group" style="margin-bottom:12px"><label style="font-size:0.8rem;font-weight:600;color:var(--muted)">Enrollment</label><input type="number" id="frEnrollment" placeholder="Number of students" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;width:200px"></div>
-
-      <table class="fr-slo-table">
-        <thead>
-          <tr>
-            <th style="width:5%">#</th>
-            <th style="width:35%">Student Learning Outcome</th>
-            <th style="width:20%">Assessment Instrument</th>
-            <th style="width:10%">Benchmark</th>
-            <th style="width:10%">% Met</th>
-            <th style="width:10%">Met?</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-  courseData.slos.forEach(slo => {
-    html += `
-      <tr>
-        <td><strong>${slo.number}</strong></td>
-        <td>${slo.text}</td>
-        <td><input type="text" id="fr_inst_${slo.id}" placeholder="e.g., Research paper, Exam"></td>
-        <td style="text-align:center">${benchmark}%</td>
-        <td><input type="number" id="fr_pct_${slo.id}" min="0" max="100" placeholder="%" style="width:70px" onchange="updateFRMet('${slo.id}',${benchmark})"></td>
-        <td style="text-align:center" id="fr_met_${slo.id}">\u2014</td>
-      </tr>
-    `;
-  });
-
-  html += `
-        </tbody>
-      </table>
-
-      <div class="fr-analysis">
-        <label>1. For any SLO where fewer than ${benchmark}% of students met the benchmark, explain the possible reasons:</label>
-        <textarea id="frAnalysis1" placeholder="Explain factors contributing to underperformance..."></textarea>
-
-        <label>2. What specific changes do you plan to implement next term to improve student achievement on these SLOs?</label>
-        <textarea id="frAnalysis2" placeholder="Describe planned curricular or pedagogical changes..."></textarea>
-
-        <label>3. If changes were made based on prior assessment results, what evidence of improvement (or lack thereof) do you see?</label>
-        <textarea id="frAnalysis3" placeholder="Describe evidence of improvement from prior closing-the-loop actions..."></textarea>
-      </div>
-
-      <div class="fr-signatures">
-        <div>
-          <input type="text" id="frFacultySig" placeholder="">
-          <label>Faculty Signature / Date</label>
-        </div>
-        <div>
-          <input type="text" id="frChairSig" placeholder="">
-          <label>Department Chair Signature / Date</label>
-        </div>
-      </div>
-
-      <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
-        <button class="btn" style="background:var(--maroon);color:white;padding:10px 24px;border:none;border-radius:8px;cursor:pointer;font-weight:600" onclick="saveFacultyReport('${progId}','${courseKey}','${term}')">Save Report to Firebase</button>
-        <button class="btn" style="background:var(--gold);color:white;padding:10px 24px;border:none;border-radius:8px;cursor:pointer;font-weight:600" onclick="printFacultyReport()">Print / Export</button>
-      </div>
-    </div>
-  `;
-
-  container.innerHTML = html;
-}
-
-function updateFRMet(sloId, benchmark) {
-  const pct = parseFloat(document.getElementById(`fr_pct_${sloId}`).value) || 0;
-  const metEl = document.getElementById(`fr_met_${sloId}`);
-  if (pct >= benchmark) {
-    metEl.innerHTML = '<span style="color:var(--success);font-weight:700">\u2713 Yes</span>';
-  } else {
-    metEl.innerHTML = '<span style="color:var(--danger);font-weight:700">\u2717 No</span>';
-  }
-}
-
-function saveFacultyReport(progId, courseKey, term) {
-  const courseData = COURSE_SLOS[courseKey];
-  if (!courseData) return;
-
-  const report = {
-    program: progId,
-    course: courseKey,
-    courseCode: courseData.code,
-    courseTitle: courseData.title,
-    term: term,
-    instructor: document.getElementById('frInstructor').value,
-    enrollment: document.getElementById('frEnrollment').value,
-    sloResults: [],
-    analysis: {
-      belowBenchmark: document.getElementById('frAnalysis1').value,
-      plannedChanges: document.getElementById('frAnalysis2').value,
-      priorImprovement: document.getElementById('frAnalysis3').value
-    },
-    facultySignature: document.getElementById('frFacultySig').value,
-    chairSignature: document.getElementById('frChairSig').value,
-    submittedAt: new Date().toISOString(),
-    submittedBy: currentUserName
-  };
-
-  courseData.slos.forEach(slo => {
-    report.sloResults.push({
-      sloId: slo.id,
-      sloNumber: slo.number,
-      sloText: slo.text,
-      instrument: document.getElementById(`fr_inst_${slo.id}`)?.value || '',
-      percentMet: document.getElementById(`fr_pct_${slo.id}`)?.value || '',
-    });
-  });
-
-  const termKey = term.replace(/\s/g, '_');
-  db.ref(`facultyReports/${progId}/${courseKey}/${termKey}`).set(report)
-    .then(() => showToast('Faculty report saved successfully!'))
-    .catch(err => showToast('Error saving report: ' + err.message));
-}
-
-function printFacultyReport() {
-  window.print();
-}
-
-// ============================================================
-// DATA FILING SYSTEM FOR SACSCOC
-// ============================================================
-function loadDataFiling() {
-  const container = document.getElementById('dataFilingDashboard');
-  container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem">Loading data completeness...</p>';
-
-  // Check Firebase for existing data
-  Promise.all([
-    db.ref('surveyResponses').once('value'),
-    db.ref('facultyReports').once('value'),
-    db.ref('gaswData').once('value'),
-    db.ref('institutionalData').once('value'),
-    db.ref('mappings').once('value'),
-    db.ref('populiImports').once('value')
-  ]).then(([surveys, facReports, gasw, instData, maps, populi]) => {
-    const surveyCount = surveys.val() ? Object.keys(surveys.val()).length : 0;
-    const reportCount = facReports.val() ? countNestedKeys(facReports.val()) : 0;
-    const gaswCount = gasw.val() ? countNestedKeys(gasw.val()) : 0;
-    const instMonths = instData.val() ? countNestedKeys(instData.val()) : 0;
-    const mappingCount = maps.val() ? Object.keys(maps.val()).length : 0;
-    const importCount = populi.val() ? Object.keys(populi.val()).length : 0;
-
-    const totalCourses = typeof COURSE_SLOS !== 'undefined' ? Object.keys(COURSE_SLOS).length : 0;
-    const totalSLOs = typeof COURSE_SLOS !== 'undefined' ? Object.values(COURSE_SLOS).reduce((sum, c) => sum + c.slos.length, 0) : 0;
-
-    container.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px">
-        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:1.8rem;font-weight:700;color:var(--maroon)">${totalCourses}</div>
-          <div style="font-size:0.8rem;color:var(--muted)">Courses with SLOs</div>
-        </div>
-        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:1.8rem;font-weight:700;color:var(--maroon)">${totalSLOs}</div>
-          <div style="font-size:0.8rem;color:var(--muted)">Total Course SLOs</div>
-        </div>
-        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:1.8rem;font-weight:700;color:${surveyCount > 0 ? 'var(--success)' : 'var(--warning)'}">
-            ${surveyCount}
-          </div>
-          <div style="font-size:0.8rem;color:var(--muted)">Survey Responses</div>
-        </div>
-        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:1.8rem;font-weight:700;color:${reportCount > 0 ? 'var(--success)' : 'var(--warning)'}">
-            ${reportCount}
-          </div>
-          <div style="font-size:0.8rem;color:var(--muted)">Faculty Exit Reports</div>
-        </div>
-        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:1.8rem;font-weight:700;color:${gaswCount > 0 ? 'var(--success)' : 'var(--warning)'}">
-            ${gaswCount}
-          </div>
-          <div style="font-size:0.8rem;color:var(--muted)">GASW Records</div>
-        </div>
-        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
-          <div style="font-size:1.8rem;font-weight:700;color:${mappingCount > 0 ? 'var(--success)' : 'var(--warning)'}">
-            ${mappingCount}
-          </div>
-          <div style="font-size:0.8rem;color:var(--muted)">Program Mappings</div>
-        </div>
-      </div>
-
-      <h4 style="margin:16px 0 8px;color:var(--maroon)">SACSCOC Evidence Categories</h4>
-      <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
-        <thead>
-          <tr style="background:var(--maroon);color:white">
-            <th style="padding:10px 12px;text-align:left">Category</th>
-            <th style="padding:10px 12px;text-align:left">Standard</th>
-            <th style="padding:10px 12px;text-align:center">Status</th>
-            <th style="padding:10px 12px;text-align:center">Records</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style="border-bottom:1px solid #eee">
-            <td style="padding:10px 12px;font-weight:600">Program Learning Outcomes</td>
-            <td style="padding:10px 12px">8.2.a</td>
-            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
-            <td style="padding:10px 12px;text-align:center">${PROGRAMS.length} programs, ${PROGRAMS.reduce((s,p) => s + (p.slos?.length||0), 0)} PLOs</td>
-          </tr>
-          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
-            <td style="padding:10px 12px;font-weight:600">Course-Level SLOs</td>
-            <td style="padding:10px 12px">8.2.a</td>
-            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
-            <td style="padding:10px 12px;text-align:center">${totalCourses} courses, ${totalSLOs} SLOs</td>
-          </tr>
-          <tr style="border-bottom:1px solid #eee">
-            <td style="padding:10px 12px;font-weight:600">Student Indirect Assessment (Surveys)</td>
-            <td style="padding:10px 12px">8.2.a</td>
-            <td style="padding:10px 12px;text-align:center">${surveyCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
-            <td style="padding:10px 12px;text-align:center">${surveyCount} responses</td>
-          </tr>
-          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
-            <td style="padding:10px 12px;font-weight:600">Faculty Direct Assessment (Exit Reports)</td>
-            <td style="padding:10px 12px">8.2.a</td>
-            <td style="padding:10px 12px;text-align:center">${reportCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
-            <td style="padding:10px 12px;text-align:center">${reportCount} reports</td>
-          </tr>
-          <tr style="border-bottom:1px solid #eee">
-            <td style="padding:10px 12px;font-weight:600">Closing the Loop (GASW)</td>
-            <td style="padding:10px 12px">8.2.b</td>
-            <td style="padding:10px 12px;text-align:center">${gaswCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
-            <td style="padding:10px 12px;text-align:center">${gaswCount} records</td>
-          </tr>
-          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
-            <td style="padding:10px 12px;font-weight:600">Assessment Instruments & Rubrics</td>
-            <td style="padding:10px 12px">8.2.a</td>
-            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
-            <td style="padding:10px 12px;text-align:center">BSBA + MAOL capstone rubrics</td>
-          </tr>
-          <tr style="border-bottom:1px solid #eee">
-            <td style="padding:10px 12px;font-weight:600">Institutional Data</td>
-            <td style="padding:10px 12px">IE Support</td>
-            <td style="padding:10px 12px;text-align:center">${instMonths > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
-            <td style="padding:10px 12px;text-align:center">${instMonths} month(s)</td>
-          </tr>
-        </tbody>
-      </table>
-    `;
-  }).catch(err => {
-    container.innerHTML = `<p style="color:var(--danger)">Error loading data: ${err.message}. Please ensure you are logged in.</p>`;
-  });
-}
-
-function countNestedKeys(obj) {
-  let count = 0;
-  if (typeof obj === 'object' && obj !== null) {
-    Object.values(obj).forEach(v => {
-      if (typeof v === 'object' && v !== null) {
-        count += Object.keys(v).length;
-      } else {
-        count++;
-      }
-    });
-  }
-  return count;
-}
 
 </script>
 </body>
