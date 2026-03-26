@@ -459,6 +459,7 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         <select class="form-select" id="catalogView" onchange="renderCatalog()">
           <option value="programs">Programs</option>
           <option value="courses">Course Descriptions</option>
+          <option value="rubrics">Capstone Rubrics</option>
         </select>
         <select class="form-select" id="catalogLevelFilter" onchange="renderCatalog()">
           <option value="all">All Levels</option>
@@ -2456,6 +2457,8 @@ function renderCatalog() {
 
   if (view === 'programs') {
     renderCatalogPrograms(container, level, search);
+  } else if (view === 'rubrics') {
+    renderCapstoneRubrics(container);
   } else {
     renderCatalogCourses(container, level, search);
   }
@@ -2702,6 +2705,78 @@ function openDrilldown(courseKey, progId) {
 
 function closeDrilldown() {
   document.getElementById('sloDrilldownModal').style.display = 'none';
+}
+
+// ============================================================
+// CAPSTONE RUBRICS VIEW
+// ============================================================
+function renderCapstoneRubrics(container) {
+  if (typeof CAPSTONE_RUBRICS === 'undefined') {
+    container.innerHTML = '<p style="color:var(--muted)">No rubric data available.</p>';
+    return;
+  }
+
+  const levelColors = {
+    exemplary: { bg: '#e8f5e9', border: '#27ae60', label: 'Exemplary (4)', pct: '90-100%' },
+    proficient: { bg: '#e3f2fd', border: '#2980b9', label: 'Proficient (3)', pct: '80-89%' },
+    developing: { bg: '#fff3e0', border: '#e67e22', label: 'Developing (2)', pct: '70-79%' },
+    beginning: { bg: '#fce4ec', border: '#e74c3c', label: 'Beginning (1)', pct: 'Below 70%' }
+  };
+
+  let html = '';
+
+  Object.entries(CAPSTONE_RUBRICS).forEach(([progKey, rubric]) => {
+    const progName = progKey === 'bsba' ? 'BS in Business Administration' : 'MA in Organizational Leadership';
+    const benchmark = progKey === 'bsba' ? '70%' : '80%';
+
+    html += `
+      <div class="card" style="margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+          <div>
+            <h3 style="color:var(--maroon);margin:0">${rubric.course} — ${progName} Capstone Rubric</h3>
+            <p style="font-size:0.85rem;color:var(--muted);margin:4px 0 0">SACSCOC Standard 8.2.a — Program-Level Summative Assessment</p>
+          </div>
+          <div style="text-align:right">
+            <span style="font-size:0.8rem;color:var(--muted)">Passing Threshold</span><br>
+            <strong style="color:var(--maroon)">${rubric.passingThreshold}</strong>
+          </div>
+        </div>
+    `;
+
+    rubric.criteria.forEach((criterion, idx) => {
+      html += `
+        <div style="margin-bottom:16px;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden">
+          <div style="background:var(--maroon);color:white;padding:10px 16px;font-weight:600;font-size:0.9rem">
+            ${criterion.plo}: ${criterion.criterion}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0">
+      `;
+
+      ['exemplary', 'proficient', 'developing', 'beginning'].forEach(level => {
+        const c = levelColors[level];
+        html += `
+          <div style="padding:12px;background:${c.bg};border-right:1px solid #e0e0e0;min-height:100px">
+            <div style="font-weight:700;font-size:0.8rem;color:${c.border};margin-bottom:6px">${c.label}</div>
+            <div style="font-size:0.78rem;color:#333;line-height:1.5">${criterion.levels[level]}</div>
+          </div>
+        `;
+      });
+
+      html += '</div></div>';
+    });
+
+    html += `
+        <div style="margin-top:12px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:0.85rem">
+          <strong>Scoring:</strong> Each student's capstone is scored on all ${rubric.criteria.length} criteria.
+          Passing: average 3.0 (Proficient) with no criterion below 2.0.
+          Below 2.0 on any criterion → revise and resubmit. Average below 3.0 → revise entire capstone and defend again.
+          <br><strong>Program benchmark:</strong> ${benchmark} of students must meet passing threshold for each PLO.
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
 }
 
 // ============================================================
