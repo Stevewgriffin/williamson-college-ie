@@ -3656,24 +3656,50 @@ function generateSurvey() {
 
   const prog = PROGRAMS.find(p => p.id === progId);
   const course = prog.courses.find(c => c.id === courseId);
+  const courseKey = courseId.replace(/[^A-Za-z0-9]/g, '');
+  const courseSLOData = (typeof COURSE_SLOS !== 'undefined') ? COURSE_SLOS[courseKey] : null;
 
   surveyResponses = {};
-  let html = `<div class="card"><h2>${prog.name} — ${course.name} (${semester})</h2>`;
-  html += `<p style="margin-bottom:24px;color:var(--muted)">Please rate your agreement with the following statements about student learning in this course.</p>`;
 
-  const sloCombined = [...prog.slos];
+  let html = `<div class="card">
+    <h2>Student Course Exit Survey</h2>
+    <h3 style="color:var(--maroon);margin:4px 0 16px">${course.code || course.id} — ${course.name} (${semester})</h3>
+    <p style="margin-bottom:16px;color:var(--muted);font-size:0.85rem">SLO-Based Indirect Assessment Instrument</p>
 
-  sloCombined.forEach((slo, idx) => {
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #eee">
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px">Student Name</label>
+        <input type="text" id="surveyStudentName" value="${currentUserName}" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem">
+      </div>
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px">Instructor</label>
+        <input type="text" id="surveyInstructor" placeholder="Enter instructor name" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem">
+      </div>
+      <div>
+        <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:4px">Date</label>
+        <input type="date" id="surveyDate" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem">
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px;font-size:0.9rem;font-weight:600">Upon completing this course, I am confident that I can:</p>`;
+
+  // Use course-level SLOs if available, otherwise fall back to program PLOs
+  const slosToUse = courseSLOData && courseSLOData.slos ? courseSLOData.slos : prog.slos;
+  const isCourseLevel = !!(courseSLOData && courseSLOData.slos);
+
+  slosToUse.forEach((slo, idx) => {
+    const sloId = slo.id || `slo_${idx}`;
+    const sloText = isCourseLevel ? slo.text : slo.text;
     html += `<div class="likert-group">
-      <div class="likert-statement">${idx + 1}. ${slo.text}</div>
+      <div class="likert-statement">${idx + 1}. ${sloText}</div>
       <div class="likert-scale">`;
 
     ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"].forEach((label, valIdx) => {
       const val = valIdx + 1;
-      const radioId = `slo_${slo.id}_${val}`;
+      const radioId = `slo_${sloId}_${val}`;
       html += `
         <div class="likert-option">
-          <input type="radio" id="${radioId}" name="slo_${slo.id}" value="${val}" onchange="surveyResponses['${slo.id}']=${val}">
+          <input type="radio" id="${radioId}" name="slo_${sloId}" value="${val}" onchange="surveyResponses['${sloId}']=${val}">
           <label for="${radioId}" style="font-size:0.75rem">${label}</label>
         </div>
       `;
@@ -3682,8 +3708,39 @@ function generateSurvey() {
     html += `</div></div>`;
   });
 
+  // Overall course assessment items
   html += `
-    <div style="display:flex;gap:12px">
+    <div class="likert-group" style="margin-top:16px;padding-top:16px;border-top:2px solid #eee">
+      <div class="likert-statement" style="font-weight:600">This course contributed to my growth as a professional.</div>
+      <div class="likert-scale">`;
+  ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"].forEach((label, valIdx) => {
+    const val = valIdx + 1;
+    html += `<div class="likert-option"><input type="radio" id="overall_growth_${val}" name="overall_growth" value="${val}" onchange="surveyResponses['overall_growth']=${val}"><label for="overall_growth_${val}" style="font-size:0.75rem">${label}</label></div>`;
+  });
+  html += `</div></div>`;
+
+  html += `
+    <div class="likert-group">
+      <div class="likert-statement" style="font-weight:600">This course strengthened my ability to integrate faith with my field of study.</div>
+      <div class="likert-scale">`;
+  ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"].forEach((label, valIdx) => {
+    const val = valIdx + 1;
+    html += `<div class="likert-option"><input type="radio" id="overall_faith_${val}" name="overall_faith" value="${val}" onchange="surveyResponses['overall_faith']=${val}"><label for="overall_faith_${val}" style="font-size:0.75rem">${label}</label></div>`;
+  });
+  html += `</div></div>`;
+
+  // Open response prompts
+  html += `
+    <div style="margin-top:16px;padding-top:16px;border-top:2px solid #eee">
+      <label style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:6px">What was the most valuable aspect of this course?</label>
+      <textarea id="surveyOpenMostValuable" style="width:100%;min-height:60px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical" placeholder="Your response..."></textarea>
+
+      <label style="font-weight:600;font-size:0.9rem;display:block;margin:12px 0 6px">What changes would you recommend for this course?</label>
+      <textarea id="surveyOpenChanges" style="width:100%;min-height:60px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical" placeholder="Your response..."></textarea>
+    </div>`;
+
+  html += `
+    <div style="display:flex;gap:12px;margin-top:20px">
       <button class="btn btn-primary" onclick="submitSurvey('${progId}', '${courseId}', '${semester}')">Submit Response</button>
       <button class="btn btn-secondary" onclick="clearSurvey()">Clear</button>
     </div>
@@ -3695,22 +3752,49 @@ function generateSurvey() {
 function submitSurvey(progId, courseId, semester) {
   const prog = PROGRAMS.find(p => p.id === progId);
   const course = prog.courses.find(c => c.id === courseId);
+  const studentName = document.getElementById("surveyStudentName")?.value || currentUserName;
+  const instructor = document.getElementById("surveyInstructor")?.value || '';
+  const surveyDate = document.getElementById("surveyDate")?.value || new Date().toISOString().split('T')[0];
+  const openMostValuable = document.getElementById("surveyOpenMostValuable")?.value || '';
+  const openChanges = document.getElementById("surveyOpenChanges")?.value || '';
+
+  if (Object.keys(surveyResponses).length === 0) {
+    showToast("Please answer at least one question before submitting");
+    return;
+  }
 
   const response = {
     program: progId,
+    programName: prog.name,
     course: courseId,
+    courseName: course.name,
+    courseCode: course.code || course.id,
     semester: semester,
+    studentName: studentName,
+    instructor: instructor,
+    surveyDate: surveyDate,
     submittedBy: currentUserName,
     submittedAt: new Date().toISOString(),
-    responses: surveyResponses
+    role: currentRole,
+    responses: surveyResponses,
+    openResponses: {
+      mostValuable: openMostValuable,
+      recommendedChanges: openChanges
+    }
   };
 
-  db.ref(`survey_responses/${progId}/${courseId}`).push(response, err => {
+  // Store under: surveyResponses/{program}/{course}/{semester}/{pushId}
+  const semKey = semester.replace(/\s/g, '_');
+  db.ref(`surveyResponses/${progId}/${courseId}/${semKey}`).push(response, err => {
     if (err) {
-      showToast("Error submitting survey");
+      showToast("Error submitting survey: " + err.message);
     } else {
-      showToast("Survey submitted successfully");
-      document.getElementById("surveyContainer").innerHTML = "<div class=\"card\"><p>Thank you for completing the survey.</p></div>";
+      showToast("Survey submitted successfully! Filed under " + progId + " / " + (course.code || courseId) + " / " + semester);
+      document.getElementById("surveyContainer").innerHTML = `<div class="card">
+        <h3 style="color:var(--success)">Thank you!</h3>
+        <p>Your course exit survey for <strong>${course.code || courseId} — ${course.name}</strong> has been submitted and filed.</p>
+        <p style="font-size:0.85rem;color:var(--muted);margin-top:8px">Filed: surveyResponses/${progId}/${courseId}/${semester}</p>
+      </div>`;
     }
   });
 }
