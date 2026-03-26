@@ -464,16 +464,6 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         <input type="text" class="form-select" id="catalogSearch" placeholder="Search courses or programs..." oninput="renderCatalog()" style="flex:1;min-width:200px">
       </div>
       <div id="catalogContent"></div>
-      <!-- SLO Drill-Down Modal -->
-      <div id="sloDrilldownModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeDrilldown()">
-        <div class="modal-content" style="max-width:800px;max-height:90vh;overflow-y:auto">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <h3 id="drilldownTitle" style="margin:0"></h3>
-            <button onclick="closeDrilldown()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--muted)">&times;</button>
-          </div>
-          <div id="drilldownContent"></div>
-        </div>
-      </div>
     </div>
 
     <!-- Programs & Mapping Panel -->
@@ -766,6 +756,17 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         <button class="btn" style="background:var(--maroon);color:white;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-top:16px" onclick="loadDataFiling()">Load Data Completeness Report</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- SLO Drill-Down Modal (body level so it renders over all panels) -->
+<div id="sloDrilldownModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeDrilldown()">
+  <div class="modal-content" style="max-width:800px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 id="drilldownTitle" style="margin:0"></h3>
+      <button onclick="closeDrilldown()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--muted)">&times;</button>
+    </div>
+    <div id="drilldownContent"></div>
   </div>
 </div>
 
