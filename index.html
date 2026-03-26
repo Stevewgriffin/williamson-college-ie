@@ -2395,15 +2395,21 @@ function openDrilldown(courseKey, progId) {
   if (typeof ASSESSMENT_INSTRUMENTS !== 'undefined' && prog) {
     const progKey = prog.id.toLowerCase();
     const instruments = ASSESSMENT_INSTRUMENTS[progKey];
-    if (instruments) {
-      html += `<h4 style="margin:20px 0 12px;color:var(--maroon)">Assessment Instruments</h4>`;
-      instruments.forEach(inst => {
-        const relevant = inst.courses.some(ic => ic.courseCode.replace(/\s/g,'') === courseData.code.replace(/\s/g,''));
-        if (relevant) {
-          const courseInst = inst.courses.find(ic => ic.courseCode.replace(/\s/g,'') === courseData.code.replace(/\s/g,''));
-          html += `<div style="background:#f8f9fa;padding:10px;border-radius:8px;margin-bottom:8px;font-size:0.85rem"><strong>${inst.ploId}:</strong> ${courseInst ? courseInst.instrument : 'See rubric'}</div>`;
+    if (instruments && typeof instruments === 'object') {
+      const courseCode = courseData.code.replace(/\s/g, '');
+      let instrumentHtml = '';
+      Object.entries(instruments).forEach(([ploId, ploData]) => {
+        const courses = ploData.courses || [];
+        const instList = ploData.instruments || [];
+        const idx = courses.findIndex(c => c.replace(/\s/g, '') === courseCode);
+        if (idx >= 0) {
+          const instrument = instList[idx] || instList[0] || 'See rubric';
+          instrumentHtml += `<div style="background:#f8f9fa;padding:10px;border-radius:8px;margin-bottom:8px;font-size:0.85rem"><strong>${ploId}:</strong> ${instrument}</div>`;
         }
       });
+      if (instrumentHtml) {
+        html += `<h4 style="margin:20px 0 12px;color:var(--maroon)">Assessment Instruments for This Course</h4>` + instrumentHtml;
+      }
     }
   }
 
