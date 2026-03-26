@@ -2041,6 +2041,243 @@ const ASSESSMENT_INSTRUMENTS = {
   }
 };
 
+// Course-level assessment instruments per SLO (from assessment matrices)
+const COURSE_INSTRUMENTS = {
+  // === BSBA Courses ===
+  "ACCT301": {
+    1: "Accounting Cycle Project",
+    2: "Accounting Cycle Project",
+    3: "Accounting Cycle Project",
+    4: "Financial Statement Analysis",
+    5: "Financial Statement Analysis"
+  },
+  "ACCT310": {
+    1: "Ratio Analysis Case",
+    2: "Ratio Analysis Case",
+    3: "Personal Finance Plan",
+    4: "Ratio Analysis Case",
+    5: "Personal Finance Plan"
+  },
+  "MGT441": {
+    1: "Risk Assessment Report",
+    2: "Risk Management Plan",
+    3: "Risk Management Plan",
+    4: "Risk Assessment Report",
+    5: "Risk Management Plan"
+  },
+  "MGT311": {
+    1: "Business Plan Project",
+    2: "Business Plan Project",
+    3: "Entrepreneurial Pitch",
+    4: "Business Plan Project",
+    5: "Business Plan Project"
+  },
+  "ECON301": {
+    1: "Macroeconomic Policy Paper",
+    2: "Macroeconomic Policy Paper",
+    3: "Macroeconomic Policy Paper",
+    4: "Economic Analysis Brief",
+    5: "Economic Analysis Brief"
+  },
+  "MKT361": {
+    1: "Sales Campaign Presentation",
+    2: "Marketing Plan",
+    3: "Sales Campaign Presentation",
+    4: "Sales Campaign Presentation",
+    5: "Marketing Plan"
+  },
+  "MGT301": {
+    1: "Org Structure Design",
+    2: "Management Theory Paper",
+    3: "Org Structure Design",
+    4: "Org Structure Design",
+    5: "Org Structure Design"
+  },
+  "MGT381": {
+    1: "Culture Diagnosis Case",
+    2: "Culture Diagnosis Case",
+    3: "OB Simulation",
+    4: "OB Simulation",
+    5: "Culture Diagnosis Case"
+  },
+  "MGT371": {
+    1: "Leadership Development Plan",
+    2: "Conflict Resolution Simulation",
+    3: "Conflict Resolution Simulation",
+    4: "Leadership Development Plan",
+    5: "Leadership Development Plan"
+  },
+  "LD471": {
+    1: "Leadership Analysis Paper",
+    2: "Leadership Analysis Paper",
+    3: "Leadership Analysis Paper",
+    4: "Leadership Theory Presentation",
+    5: "Leadership Theory Presentation"
+  },
+  "MGT361": {
+    1: "Sales Strategy Case",
+    2: "Sales Presentation",
+    3: "Sales Strategy Case",
+    4: "Sales Presentation",
+    5: "Sales Strategy Case"
+  },
+  "BUSPS450": {
+    1: "Contract Analysis Case",
+    2: "Contract Analysis Case",
+    3: "Business Law Brief",
+    4: "Business Law Brief",
+    5: "Contract Analysis Case"
+  },
+  "CT403": {
+    1: "Ethics Case Analysis",
+    2: "Ethics Case Analysis",
+    3: "Ethical Position Paper",
+    4: "Ethical Position Paper",
+    5: "Ethical Position Paper"
+  },
+  "BUS301": {
+    1: "Business as Mission Proposal",
+    2: "BAM Case Study",
+    3: "Business as Mission Proposal",
+    4: "BAM Case Study",
+    5: "BAM Case Study"
+  },
+  "CT251": {
+    1: "Worldview Analysis Essay",
+    2: "Worldview Comparison Paper",
+    3: "Worldview Analysis Essay",
+    4: "Worldview Analysis Essay",
+    5: "Worldview Comparison Paper"
+  },
+  "LD201": {
+    1: "Biblical Leadership Case Study",
+    2: "Biblical Leadership Case Study",
+    3: "Leadership Philosophy Paper",
+    4: "Leadership Philosophy Paper",
+    5: "Biblical Leadership Case Study"
+  },
+  "BL201": {
+    1: "OT Narrative Analysis Paper",
+    2: "OT Narrative Analysis Paper",
+    3: "OT Narrative Analysis Paper",
+    4: "OT Narrative Analysis Paper",
+    5: "OT Narrative Analysis Paper"
+  },
+  "BL202": {
+    1: "Prophetic Literature Analysis",
+    2: "Prophetic Literature Analysis",
+    3: "Prophetic Literature Analysis",
+    4: "Prophetic Literature Analysis",
+    5: "Prophetic Literature Analysis"
+  },
+  "BL212": {
+    1: "NT Survey Research Paper",
+    2: "NT Survey Research Paper",
+    3: "NT Survey Research Paper",
+    4: "NT Survey Research Paper",
+    5: "NT Survey Research Paper"
+  },
+  "CT330": {
+    1: "Doctrine Position Paper",
+    2: "Doctrine Position Paper",
+    3: "Doctrine Position Paper",
+    4: "Doctrine Position Paper",
+    5: "Doctrine Position Paper"
+  },
+  "MGT489": {
+    1: "Capstone Paper",
+    2: "Capstone Paper & Presentation",
+    3: "Capstone Paper & Presentation",
+    4: "Capstone Paper",
+    5: "Capstone Presentation"
+  },
+  // === MAOL Courses ===
+  "OL510": {
+    1: "Ethical Case Analysis",
+    2: "Personal Leadership Ethic Paper",
+    3: "Personal Leadership Ethic Paper",
+    4: "Personal Leadership Ethic Paper",
+    5: "Ethical Case Analysis"
+  },
+  "OL501": {
+    1: "Global Leadership Case",
+    2: "Intercultural Leadership Philosophy Paper",
+    3: "Intercultural Leadership Philosophy Paper",
+    4: "Global Leadership Case",
+    5: "Intercultural Leadership Philosophy Paper"
+  },
+  "OL530": {
+    1: "Organizational Culture Assessment",
+    2: "Culture Diagnosis & Improvement Project",
+    3: "Organizational Culture Assessment",
+    4: "Organizational Culture Assessment",
+    5: "Culture Diagnosis & Improvement Project"
+  },
+  "OL540": {
+    1: "Change Management Plan",
+    2: "Change Management Plan",
+    3: "Change Management Plan",
+    4: "Change & Criticism Analysis",
+    5: "Change Implementation Brief"
+  },
+  "OL575": {
+    1: "Strategic Plan Project",
+    2: "Strategic Plan Project",
+    3: "Strategy Analysis Paper",
+    4: "Strategy Analysis Paper",
+    5: "Strategic Plan Project"
+  },
+  "OL570": {
+    1: "Financial Statement Case",
+    2: "Financial Analysis Report",
+    3: "Financial Statement Case",
+    4: "Financial Statement Case",
+    5: "Financial Analysis Report"
+  },
+  "OL565": {
+    1: "Business Risk Assessment",
+    2: "Business Risk Assessment",
+    3: "Business Risk Assessment",
+    4: "Business Risk Assessment",
+    5: "Risk Framework Paper"
+  },
+  "OL560": {
+    1: "Communication Analysis Paper",
+    2: "Communication Analysis Paper",
+    3: "Conflict Resolution Simulation",
+    4: "Conflict Resolution Simulation",
+    5: "Conflict Resolution Simulation"
+  },
+  "OL590": {
+    1: "International Reflective Analysis",
+    2: "Cross-Cultural Leadership Journal",
+    3: "Cross-Cultural Leadership Journal",
+    4: "International Reflective Analysis",
+    5: "International Reflective Analysis"
+  },
+  "OL550": {
+    1: "Leadership Context Analysis",
+    2: "Leadership Context Analysis",
+    3: "Leadership Context Analysis",
+    4: "National Context Reflective Paper",
+    5: "National Context Reflective Paper"
+  },
+  "OL500": {
+    1: "Critical Thinking Portfolio",
+    2: "Critical Thinking Portfolio",
+    3: "Critical Thinking Portfolio",
+    4: "Graduate Analytical Paper",
+    5: "Graduate Analytical Paper"
+  },
+  "OL599": {
+    1: "Capstone Project & Defense",
+    2: "Capstone Project & Defense",
+    3: "Capstone Project & Defense",
+    4: "Capstone Project & Defense",
+    5: "Capstone Written Document"
+  }
+};
+
 const CAPSTONE_RUBRICS = {
   "bsba": {
     "course": "MGT 489",
@@ -2849,7 +3086,7 @@ ${text.substring(0, 8000)}`;
   }
 }
 
-// Update loadFacultyReportForm to check for syllabus data
+// Update loadFacultyReportForm to check for syllabus data, then fall back to COURSE_INSTRUMENTS
 const _origLoadFacultyReportForm = loadFacultyReportForm;
 loadFacultyReportForm = function() {
   _origLoadFacultyReportForm();
@@ -2858,34 +3095,67 @@ loadFacultyReportForm = function() {
   const courseKey = document.getElementById('frCourse')?.value;
   if (!courseKey) return;
 
-  db.ref(`syllabi/${courseKey}`).once('value', snap => {
-    const syllabusData = snap.val();
-    if (!syllabusData || !syllabusData.slos) return;
+  const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
 
-    syllabusData.slos.forEach(slo => {
-      // Try to match by SLO number
-      const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
-      if (courseData && courseData.slos) {
-        const matchingSLO = courseData.slos.find(s => s.number === slo.number);
-        if (matchingSLO) {
-          const instInput = document.getElementById(`fr_inst_${matchingSLO.id}`);
-          if (instInput && !instInput.value) {
-            instInput.value = slo.assessmentInstrument || '';
-            instInput.style.background = '#f0fff0';
-            instInput.title = 'Auto-populated from syllabus';
-          }
-        }
+  // Helper: apply COURSE_INSTRUMENTS fallback for any SLO inputs still empty
+  function applyCourseInstrumentsFallback() {
+    if (!courseData || !courseData.slos) return;
+    const instruments = (typeof COURSE_INSTRUMENTS !== 'undefined') ? COURSE_INSTRUMENTS[courseKey] : null;
+    if (!instruments) return;
+
+    let anyFilled = false;
+    courseData.slos.forEach(slo => {
+      const instInput = document.getElementById(`fr_inst_${slo.id}`);
+      if (instInput && !instInput.value && instruments[slo.number]) {
+        instInput.value = instruments[slo.number];
+        instInput.style.background = '#fffde0';
+        instInput.title = 'Auto-populated from assessment matrix (editable)';
+        anyFilled = true;
       }
     });
-
-    // Auto-fill instructor if available
-    const instrInput = document.getElementById('frInstructor');
-    if (instrInput && !instrInput.value && syllabusData.instructor) {
-      instrInput.value = syllabusData.instructor;
-      instrInput.style.background = '#f0fff0';
+    if (anyFilled) {
+      showToast('Assessment instruments pre-filled from assessment matrix');
     }
+  }
 
-    showToast('Assessment instruments auto-populated from uploaded syllabus');
+  db.ref(`syllabi/${courseKey}`).once('value', snap => {
+    const syllabusData = snap.val();
+
+    // Priority 1: Syllabus data from Firebase (chair-uploaded)
+    if (syllabusData && syllabusData.slos) {
+      let syllabusPopulated = false;
+      syllabusData.slos.forEach(slo => {
+        if (courseData && courseData.slos) {
+          const matchingSLO = courseData.slos.find(s => s.number === slo.number);
+          if (matchingSLO) {
+            const instInput = document.getElementById(`fr_inst_${matchingSLO.id}`);
+            if (instInput && !instInput.value) {
+              instInput.value = slo.assessmentInstrument || '';
+              instInput.style.background = '#f0fff0';
+              instInput.title = 'Auto-populated from syllabus';
+              syllabusPopulated = true;
+            }
+          }
+        }
+      });
+
+      // Auto-fill instructor if available
+      const instrInput = document.getElementById('frInstructor');
+      if (instrInput && !instrInput.value && syllabusData.instructor) {
+        instrInput.value = syllabusData.instructor;
+        instrInput.style.background = '#f0fff0';
+      }
+
+      if (syllabusPopulated) {
+        showToast('Assessment instruments auto-populated from uploaded syllabus');
+      }
+
+      // Priority 2: Fill any remaining empty SLO instruments from COURSE_INSTRUMENTS
+      applyCourseInstrumentsFallback();
+    } else {
+      // No syllabus data — use COURSE_INSTRUMENTS as sole source
+      applyCourseInstrumentsFallback();
+    }
   });
 };
 
