@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="demo-data.js"></script>
 <style>
 :root {
   --maroon: #722F37;
@@ -4351,25 +4352,71 @@ function loadDashboard() {
 }
 
 function renderDashStats(responses) {
+  const hasDemoData = typeof DEMO_SUMMARY !== 'undefined';
+  const totalStudents = hasDemoData ? DEMO_SUMMARY.totalStudents : '—';
+  const avgGPA = hasDemoData ? DEMO_SUMMARY.avgGPA : '—';
+  const avgAttendance = hasDemoData ? DEMO_SUMMARY.avgAttendance + '%' : '—';
+  const totalSLOs = typeof COURSE_SLOS !== 'undefined' ? Object.values(COURSE_SLOS).reduce((s,c) => s + c.slos.length, 0) : 0;
+
   const statsHtml = `
+    <div class="stat-card">
+      <div class="number">${totalStudents}</div>
+      <div class="label">Active Students</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">${PROGRAMS.length}</div>
+      <div class="label">Programs</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">${totalSLOs}</div>
+      <div class="label">Course SLOs</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">${avgGPA}</div>
+      <div class="label">Avg Cum. GPA</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">${avgAttendance}</div>
+      <div class="label">Avg Attendance</div>
+    </div>
     <div class="stat-card">
       <div class="number">${responses.length}</div>
       <div class="label">Survey Responses</div>
     </div>
-    <div class="stat-card">
-      <div class="number">${new Set(responses.map(r => r.program)).size}</div>
-      <div class="label">Programs Assessed</div>
-    </div>
-    <div class="stat-card">
-      <div class="number">${new Set(responses.map(r => r.semester)).size}</div>
-      <div class="label">Semesters</div>
-    </div>
-    <div class="stat-card">
-      <div class="number">${PROGRAMS.length}</div>
-      <div class="label">Total Programs</div>
-    </div>
   `;
   document.getElementById("dashStats").innerHTML = statsHtml;
+
+  // Render enrollment by program if demo data available
+  if (hasDemoData) {
+    const progHTML = Object.entries(DEMO_SUMMARY.enrollmentByProgram)
+      .sort((a,b) => b[1] - a[1])
+      .map(([prog, count]) => `<span style="display:inline-block;margin:4px 8px 4px 0;padding:4px 12px;background:var(--maroon);color:white;border-radius:20px;font-size:0.8rem;font-weight:600">${prog}: ${count}</span>`)
+      .join('');
+    const gradeHTML = Object.entries(DEMO_SUMMARY.gradeDistribution)
+      .map(([g, count]) => `<span style="margin-right:12px;font-size:0.85rem"><strong>${g}:</strong> ${count}</span>`)
+      .join('');
+
+    const demoCard = document.createElement('div');
+    demoCard.className = 'card';
+    demoCard.style.marginTop = '16px';
+    demoCard.innerHTML = `
+      <h3 style="margin-bottom:8px;color:var(--maroon)">Current Enrollment (Populi Data)</h3>
+      <div style="margin-bottom:12px">${progHTML}</div>
+      <h4 style="font-size:0.85rem;color:var(--muted);margin-bottom:6px">Grade Distribution (Module 6)</h4>
+      <div>${gradeHTML}</div>
+      <h4 style="font-size:0.85rem;color:var(--muted);margin:12px 0 6px">Course Breakdown</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+        <thead><tr style="background:#f8f9fa"><th style="padding:8px;text-align:left">Course</th><th style="padding:8px;text-align:center">Enrolled</th><th style="padding:8px;text-align:center">Avg Grade</th><th style="padding:8px;text-align:left">Faculty</th></tr></thead>
+        <tbody>
+          ${Object.entries(DEMO_SUMMARY.courseBreakdown).map(([name, d]) =>
+            `<tr style="border-bottom:1px solid #eee"><td style="padding:8px">${name}</td><td style="padding:8px;text-align:center">${d.enrolled}</td><td style="padding:8px;text-align:center">${d.avgGrade}</td><td style="padding:8px">${d.faculty}</td></tr>`
+          ).join('')}
+        </tbody>
+      </table>
+    `;
+    const dashStats = document.getElementById('dashStats');
+    dashStats.parentNode.insertBefore(demoCard, dashStats.nextSibling);
+  }
 }
 
 function renderDashProgress() {
