@@ -3495,7 +3495,8 @@ function renderMappingGrid() {
 
   const sloCols = currentProgram.slos.map(s => s.id);
 
-  let html = `<table class="mapping-grid"><thead><tr><th>Course</th>`;
+  let html = `<div style="margin-bottom:12px"><button class="btn" style="background:var(--gold);color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem" onclick="autoPopulateMappings()">Auto-Populate from Assessment Data</button></div>`;
+  html += `<table class="mapping-grid"><thead><tr><th>Course</th>`;
   sloCols.forEach(sloId => {
     html += `<th>${sloId}</th>`;
   });
@@ -3518,6 +3519,59 @@ function renderMappingGrid() {
     const val = cell.getAttribute("data-val");
     cell.textContent = val === "-" ? "" : val;
   });
+}
+
+function autoPopulateMappings() {
+  if (!currentProgram) return;
+  const progKey = currentProgram.id.toLowerCase();
+  const instruments = (typeof ASSESSMENT_INSTRUMENTS !== 'undefined') ? ASSESSMENT_INSTRUMENTS[progKey] : null;
+
+  currentProgram.courses.forEach(course => {
+    const courseCode = (course.code || course.id).replace(/\s/g, '');
+    const courseKey = course.id.replace(/[^A-Za-z0-9]/g, '');
+    const courseSLOs = (typeof COURSE_SLOS !== 'undefined') ? COURSE_SLOS[courseKey] : null;
+
+    currentProgram.slos.forEach((plo, ploIdx) => {
+      const mapKey = `${currentProgram.id}-${course.id}-${plo.id}`;
+      let mapping = "-";
+
+      // Check if this course has SLOs that relate to this PLO
+      if (courseSLOs && courseSLOs.slos) {
+        // Check assessment instruments for direct PLO mapping
+        if (instruments && instruments[plo.id]) {
+          const ploCourses = instruments[plo.id].courses || [];
+          const matched = ploCourses.some(c => c.replace(/\s/g, '') === courseCode);
+          if (matched) {
+            // Capstone courses get "A" (Assessed), others get "E" (Emphasized) or "R" (Reinforced)
+            const isCapstone = course.name.toLowerCase().includes('capstone');
+            mapping = isCapstone ? "A" : "E";
+          }
+        }
+
+        // If no instrument match, check if course SLO text mentions PLO concepts
+        if (mapping === "-" && courseSLOs.slos.length > 0) {
+          const ploWords = (plo.name || plo.text || '').toLowerCase().split(/\s+/);
+          const keyTerms = ploWords.filter(w => w.length > 4);
+          const sloTexts = courseSLOs.slos.map(s => s.text.toLowerCase()).join(' ');
+          const matches = keyTerms.filter(t => sloTexts.includes(t));
+          if (matches.length >= 2) {
+            mapping = "R"; // Reinforced
+          } else if (matches.length >= 1) {
+            mapping = "I"; // Introduced
+          }
+        }
+      }
+
+      // Update the cell
+      const cell = document.querySelector(`[data-key="${mapKey}"]`);
+      if (cell && mapping !== "-") {
+        cell.setAttribute("data-val", mapping);
+        cell.textContent = mapping;
+      }
+    });
+  });
+
+  showToast("Mapping auto-populated from assessment data. Review and adjust, then save.");
 }
 
 function cycleMappingValue(cell) {
