@@ -2950,18 +2950,24 @@ function uploadSyllabus() {
     if (file.name.endsWith('.txt')) {
       text = e.target.result;
     } else if (file.name.endsWith('.docx')) {
-      // Extract text from docx using XLSX library's zip capabilities or raw text
+      // Extract text from docx (which is a zip of XML files)
       try {
-        const zip = new JSZip ? null : null; // Not available, use raw approach
-      } catch(err) {}
-      // For docx, extract readable text from the binary
-      const content = e.target.result;
-      // Simple extraction: pull text between XML tags
-      const xmlText = new TextDecoder('utf-8').decode(new Uint8Array(content.split('').map(c => c.charCodeAt(0))));
-      text = xmlText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      // If that didn't work well, try the raw string
-      if (text.length < 100) {
-        text = content;
+        const arrayBuffer = e.target.result;
+        const uint8 = new Uint8Array(arrayBuffer);
+        const decoder = new TextDecoder('utf-8');
+        const fullStr = decoder.decode(uint8);
+        // Extract text from <w:t> tags (Word's document.xml format)
+        const wtMatches = fullStr.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+        if (wtMatches && wtMatches.length > 0) {
+          text = wtMatches.map(m => m.replace(/<[^>]+>/g, '')).join(' ');
+          text = text.replace(/\s{3,}/g, '\n').trim();
+        }
+        if (!text || text.length < 100) {
+          text = fullStr.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+      } catch(docxErr) {
+        console.warn('DOCX parse error:', docxErr);
+        text = '';
       }
     }
 
@@ -3082,7 +3088,7 @@ ${text.substring(0, 8000)}`;
   if (file.name.endsWith('.txt')) {
     reader.readAsText(file);
   } else {
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   }
 }
 
