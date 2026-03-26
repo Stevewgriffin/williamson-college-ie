@@ -1,0 +1,12 @@
+{
+  "name": "williamson-college-ie-assessment",
+  "version": "1.0.0",
+  "description": "Williamson College Institutional Effectiveness Assessment System",
+  "scripts": {
+    "dev": "npx netlify dev",
+    "deploy": "npx netlify deploy --prod"
+  },
+  "author": "Williamson College",
+  "license": "UNLICENSED",
+  "private": true
+}
