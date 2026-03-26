@@ -629,6 +629,26 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         </select>
       </div>
       <div id="facultyReportForm"></div>
+
+      <!-- Syllabus Management Section -->
+      <div class="card" style="margin-top:24px;border-left:4px solid var(--gold)">
+        <h3 style="color:var(--maroon);margin-bottom:4px">Syllabus Upload (Department Chair)</h3>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px">Upload a course syllabus (.docx or .txt) and AI will extract SLOs and assessment instruments. This data permanently populates the Faculty Report form for this course until a new syllabus is uploaded.</p>
+        <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <select class="form-select" id="syllabusProgram" onchange="populateSyllabusCourses()">
+            <option value="">Select Program...</option>
+          </select>
+          <select class="form-select" id="syllabusCourse">
+            <option value="">Select Course...</option>
+          </select>
+          <div style="flex:1;min-width:200px">
+            <input type="file" id="syllabusFile" accept=".docx,.txt,.pdf" style="font-size:0.85rem">
+          </div>
+          <button class="btn" style="background:var(--maroon);color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem" onclick="uploadSyllabus()">Extract & Save</button>
+        </div>
+        <div id="syllabusStatus"></div>
+        <div id="syllabusHistory"></div>
+      </div>
     </div>
 
     <!-- Populi Import Panel -->
@@ -2621,6 +2641,255 @@ function printFacultyReport() {
 }
 
 // ============================================================
+// SYLLABUS UPLOAD & AI EXTRACTION
+// ============================================================
+function populateSyllabusCourses() {
+  const progId = document.getElementById('syllabusProgram').value;
+  const sel = document.getElementById('syllabusCourse');
+  sel.innerHTML = '<option value="">Select Course...</option>';
+  if (!progId) return;
+  const prog = PROGRAMS.find(p => p.id === progId);
+  if (!prog || !prog.courses) return;
+  prog.courses.forEach(c => {
+    sel.innerHTML += `<option value="${c.id}">${c.code || c.id} - ${c.name}</option>`;
+  });
+}
+
+function initSyllabusSection() {
+  const sel = document.getElementById('syllabusProgram');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select Program...</option>';
+  PROGRAMS.forEach(p => {
+    sel.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+  });
+  loadSyllabusHistory();
+}
+
+function loadSyllabusHistory() {
+  db.ref('syllabi').once('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+    const container = document.getElementById('syllabusHistory');
+    if (!container) return;
+    let html = '<h4 style="margin:16px 0 8px;color:var(--maroon);font-size:0.9rem">Uploaded Syllabi</h4>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:0.82rem"><thead><tr style="background:#f8f9fa"><th style="padding:6px 10px;text-align:left">Course</th><th style="padding:6px 10px;text-align:left">Instructor</th><th style="padding:6px 10px;text-align:center">SLOs</th><th style="padding:6px 10px;text-align:left">Uploaded</th></tr></thead><tbody>';
+    Object.entries(data).forEach(([key, s]) => {
+      const sloCount = s.slos ? s.slos.length : 0;
+      const date = s.uploadedAt ? new Date(s.uploadedAt).toLocaleDateString() : '—';
+      html += `<tr style="border-bottom:1px solid #eee"><td style="padding:6px 10px"><strong>${s.courseCode || key}</strong> - ${s.courseTitle || ''}</td><td style="padding:6px 10px">${s.instructor || '—'}</td><td style="padding:6px 10px;text-align:center">${sloCount}</td><td style="padding:6px 10px">${date}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  });
+}
+
+function uploadSyllabus() {
+  const progId = document.getElementById('syllabusProgram').value;
+  const courseId = document.getElementById('syllabusCourse').value;
+  const fileInput = document.getElementById('syllabusFile');
+  const statusEl = document.getElementById('syllabusStatus');
+
+  if (!progId || !courseId) {
+    showToast('Please select a program and course');
+    return;
+  }
+  if (!fileInput.files[0]) {
+    showToast('Please select a syllabus file');
+    return;
+  }
+
+  const apiKey = document.getElementById('claudeApiKey')?.value;
+  if (!apiKey) {
+    showToast('Please enter your Claude API key at the top of the page to use AI extraction');
+    return;
+  }
+
+  const file = fileInput.files[0];
+  statusEl.innerHTML = '<div class="import-status loading">Reading syllabus file...</div>';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let text = '';
+    if (file.name.endsWith('.txt')) {
+      text = e.target.result;
+    } else if (file.name.endsWith('.docx')) {
+      // Extract text from docx using XLSX library's zip capabilities or raw text
+      try {
+        const zip = new JSZip ? null : null; // Not available, use raw approach
+      } catch(err) {}
+      // For docx, extract readable text from the binary
+      const content = e.target.result;
+      // Simple extraction: pull text between XML tags
+      const xmlText = new TextDecoder('utf-8').decode(new Uint8Array(content.split('').map(c => c.charCodeAt(0))));
+      text = xmlText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      // If that didn't work well, try the raw string
+      if (text.length < 100) {
+        text = content;
+      }
+    }
+
+    if (text.length < 50) {
+      statusEl.innerHTML = '<div class="import-status error">Could not extract text from file. Try .txt format.</div>';
+      return;
+    }
+
+    statusEl.innerHTML = '<div class="import-status loading">AI is extracting SLOs and assessment instruments...</div>';
+
+    const prog = PROGRAMS.find(p => p.id === progId);
+    const course = prog?.courses?.find(c => c.id === courseId);
+    const courseCode = course?.code || courseId;
+    const courseName = course?.name || '';
+
+    // Send to Claude for extraction
+    const prompt = `You are analyzing a college course syllabus. Extract the following data and return it as valid JSON only (no markdown, no explanation):
+
+{
+  "courseCode": "${courseCode}",
+  "courseTitle": "${courseName}",
+  "instructor": "extracted instructor name",
+  "description": "course description from syllabus",
+  "slos": [
+    {"number": 1, "text": "SLO 1 text exactly as written", "assessmentInstrument": "the specific assignment/exam that measures this SLO", "howMeasured": "rubric criterion, exam questions, etc."},
+    {"number": 2, "text": "SLO 2 text", "assessmentInstrument": "...", "howMeasured": "..."},
+    ...
+  ],
+  "gradingPolicy": "brief grading breakdown",
+  "requiredTexts": ["text1", "text2"]
+}
+
+IMPORTANT:
+- Extract ALL Student Learning Outcomes (usually 5)
+- For each SLO, identify which assignment/exam/project measures it based on the grading section and assignments described
+- If the syllabus doesn't explicitly map SLOs to assignments, infer the best match from the assignment descriptions
+- Return ONLY valid JSON, no other text
+
+Here is the syllabus text:
+${text.substring(0, 8000)}`;
+
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) {
+        statusEl.innerHTML = `<div class="import-status error">API Error: ${data.error.message}</div>`;
+        return;
+      }
+
+      const responseText = data.content?.[0]?.text || '';
+      let extracted;
+      try {
+        // Try to parse JSON from response (may be wrapped in markdown)
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        extracted = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+      } catch(parseErr) {
+        statusEl.innerHTML = `<div class="import-status error">Failed to parse AI response. Try again.</div>`;
+        return;
+      }
+
+      // Save to Firebase permanently
+      const syllabusData = {
+        ...extracted,
+        program: progId,
+        courseId: courseId,
+        courseCode: courseCode,
+        courseTitle: courseName,
+        uploadedBy: currentUserName,
+        uploadedAt: new Date().toISOString(),
+        fileName: file.name
+      };
+
+      const courseKey = courseId.replace(/[^A-Za-z0-9]/g, '');
+      db.ref(`syllabi/${courseKey}`).set(syllabusData)
+        .then(() => {
+          statusEl.innerHTML = `
+            <div class="import-status success">
+              <strong>Syllabus saved!</strong> Extracted ${extracted.slos?.length || 0} SLOs with assessment instruments for ${courseCode} - ${courseName}.
+              <br>Faculty Reports for this course will now auto-populate assessment instruments.
+            </div>
+          `;
+
+          // Show preview
+          if (extracted.slos) {
+            let preview = '<div style="margin-top:12px;background:#f8f9fa;border-radius:8px;padding:14px"><h4 style="color:var(--maroon);margin-bottom:8px">Extracted Data Preview</h4>';
+            preview += `<p style="font-size:0.85rem;margin-bottom:8px"><strong>Instructor:</strong> ${extracted.instructor || '—'}</p>`;
+            extracted.slos.forEach(slo => {
+              preview += `<div style="padding:6px 0;border-bottom:1px solid #eee;font-size:0.83rem"><strong>SLO ${slo.number}:</strong> ${slo.text}<br><span style="color:var(--success)">Instrument: ${slo.assessmentInstrument}</span> | <span style="color:var(--info)">Measured: ${slo.howMeasured}</span></div>`;
+            });
+            preview += '</div>';
+            statusEl.innerHTML += preview;
+          }
+
+          loadSyllabusHistory();
+        })
+        .catch(err => {
+          statusEl.innerHTML = `<div class="import-status error">Firebase save error: ${err.message}</div>`;
+        });
+    })
+    .catch(err => {
+      statusEl.innerHTML = `<div class="import-status error">Network error: ${err.message}</div>`;
+    });
+  };
+
+  if (file.name.endsWith('.txt')) {
+    reader.readAsText(file);
+  } else {
+    reader.readAsBinaryString(file);
+  }
+}
+
+// Update loadFacultyReportForm to check for syllabus data
+const _origLoadFacultyReportForm = loadFacultyReportForm;
+loadFacultyReportForm = function() {
+  _origLoadFacultyReportForm();
+
+  // After form renders, check Firebase for syllabus data and auto-populate instruments
+  const courseKey = document.getElementById('frCourse')?.value;
+  if (!courseKey) return;
+
+  db.ref(`syllabi/${courseKey}`).once('value', snap => {
+    const syllabusData = snap.val();
+    if (!syllabusData || !syllabusData.slos) return;
+
+    syllabusData.slos.forEach(slo => {
+      // Try to match by SLO number
+      const courseData = COURSE_SLOS ? COURSE_SLOS[courseKey] : null;
+      if (courseData && courseData.slos) {
+        const matchingSLO = courseData.slos.find(s => s.number === slo.number);
+        if (matchingSLO) {
+          const instInput = document.getElementById(`fr_inst_${matchingSLO.id}`);
+          if (instInput && !instInput.value) {
+            instInput.value = slo.assessmentInstrument || '';
+            instInput.style.background = '#f0fff0';
+            instInput.title = 'Auto-populated from syllabus';
+          }
+        }
+      }
+    });
+
+    // Auto-fill instructor if available
+    const instrInput = document.getElementById('frInstructor');
+    if (instrInput && !instrInput.value && syllabusData.instructor) {
+      instrInput.value = syllabusData.instructor;
+      instrInput.style.background = '#f0fff0';
+    }
+
+    showToast('Assessment instruments auto-populated from uploaded syllabus');
+  });
+};
+
+// ============================================================
 // DATA FILING SYSTEM FOR SACSCOC
 // ============================================================
 function loadDataFiling() {
@@ -2849,6 +3118,7 @@ function initializeApp() {
   loadPopuliImportHistory();
   loadDashboard();
   populateFRPrograms();
+  initSyllabusSection();
 }
 
 function updateTabVisibility() {
