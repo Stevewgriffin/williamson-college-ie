@@ -757,6 +757,14 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         </div>
       </div>
       <div id="reportOutput"></div>
+
+      <!-- Data Filing System for SACSCOC -->
+      <div class="card" style="margin-top:24px;border-left:4px solid var(--gold)">
+        <h3 style="color:var(--maroon);margin-bottom:12px">SACSCOC Data Filing System</h3>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px">Data completeness dashboard showing collected evidence for SACSCOC Standards 8.2.a and 8.2.b compliance.</p>
+        <div id="dataFilingDashboard"></div>
+        <button class="btn" style="background:var(--maroon);color:white;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;font-weight:600;margin-top:16px" onclick="loadDataFiling()">Load Data Completeness Report</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5546,6 +5554,143 @@ function saveFacultyReport(progId, courseKey, term) {
 
 function printFacultyReport() {
   window.print();
+}
+
+// ============================================================
+// DATA FILING SYSTEM FOR SACSCOC
+// ============================================================
+function loadDataFiling() {
+  const container = document.getElementById('dataFilingDashboard');
+  container.innerHTML = '<p style="color:var(--muted);font-size:0.85rem">Loading data completeness...</p>';
+
+  // Check Firebase for existing data
+  Promise.all([
+    db.ref('surveyResponses').once('value'),
+    db.ref('facultyReports').once('value'),
+    db.ref('gaswData').once('value'),
+    db.ref('institutionalData').once('value'),
+    db.ref('mappings').once('value'),
+    db.ref('populiImports').once('value')
+  ]).then(([surveys, facReports, gasw, instData, maps, populi]) => {
+    const surveyCount = surveys.val() ? Object.keys(surveys.val()).length : 0;
+    const reportCount = facReports.val() ? countNestedKeys(facReports.val()) : 0;
+    const gaswCount = gasw.val() ? countNestedKeys(gasw.val()) : 0;
+    const instMonths = instData.val() ? countNestedKeys(instData.val()) : 0;
+    const mappingCount = maps.val() ? Object.keys(maps.val()).length : 0;
+    const importCount = populi.val() ? Object.keys(populi.val()).length : 0;
+
+    const totalCourses = typeof COURSE_SLOS !== 'undefined' ? Object.keys(COURSE_SLOS).length : 0;
+    const totalSLOs = typeof COURSE_SLOS !== 'undefined' ? Object.values(COURSE_SLOS).reduce((sum, c) => sum + c.slos.length, 0) : 0;
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:20px">
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:var(--maroon)">${totalCourses}</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Courses with SLOs</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:var(--maroon)">${totalSLOs}</div>
+          <div style="font-size:0.8rem;color:var(--muted)">Total Course SLOs</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${surveyCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${surveyCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">Survey Responses</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${reportCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${reportCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">Faculty Exit Reports</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${gaswCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${gaswCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">GASW Records</div>
+        </div>
+        <div style="background:#f8f9fa;border-radius:10px;padding:14px;text-align:center">
+          <div style="font-size:1.8rem;font-weight:700;color:${mappingCount > 0 ? 'var(--success)' : 'var(--warning)'}">
+            ${mappingCount}
+          </div>
+          <div style="font-size:0.8rem;color:var(--muted)">Program Mappings</div>
+        </div>
+      </div>
+
+      <h4 style="margin:16px 0 8px;color:var(--maroon)">SACSCOC Evidence Categories</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+        <thead>
+          <tr style="background:var(--maroon);color:white">
+            <th style="padding:10px 12px;text-align:left">Category</th>
+            <th style="padding:10px 12px;text-align:left">Standard</th>
+            <th style="padding:10px 12px;text-align:center">Status</th>
+            <th style="padding:10px 12px;text-align:center">Records</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Program Learning Outcomes</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
+            <td style="padding:10px 12px;text-align:center">${PROGRAMS.length} programs, ${PROGRAMS.reduce((s,p) => s + (p.slos?.length||0), 0)} PLOs</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
+            <td style="padding:10px 12px;font-weight:600">Course-Level SLOs</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
+            <td style="padding:10px 12px;text-align:center">${totalCourses} courses, ${totalSLOs} SLOs</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Student Indirect Assessment (Surveys)</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center">${surveyCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${surveyCount} responses</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
+            <td style="padding:10px 12px;font-weight:600">Faculty Direct Assessment (Exit Reports)</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center">${reportCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${reportCount} reports</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Closing the Loop (GASW)</td>
+            <td style="padding:10px 12px">8.2.b</td>
+            <td style="padding:10px 12px;text-align:center">${gaswCount > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${gaswCount} records</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee;background:#f8f9fa">
+            <td style="padding:10px 12px;font-weight:600">Assessment Instruments & Rubrics</td>
+            <td style="padding:10px 12px">8.2.a</td>
+            <td style="padding:10px 12px;text-align:center"><span style="color:var(--success);font-weight:700">✓ Complete</span></td>
+            <td style="padding:10px 12px;text-align:center">BSBA + MAOL capstone rubrics</td>
+          </tr>
+          <tr style="border-bottom:1px solid #eee">
+            <td style="padding:10px 12px;font-weight:600">Institutional Data</td>
+            <td style="padding:10px 12px">IE Support</td>
+            <td style="padding:10px 12px;text-align:center">${instMonths > 0 ? '<span style="color:var(--success);font-weight:700">✓ In Progress</span>' : '<span style="color:var(--warning);font-weight:700">⏳ Pending</span>'}</td>
+            <td style="padding:10px 12px;text-align:center">${instMonths} month(s)</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+  }).catch(err => {
+    container.innerHTML = `<p style="color:var(--danger)">Error loading data: ${err.message}. Please ensure you are logged in.</p>`;
+  });
+}
+
+function countNestedKeys(obj) {
+  let count = 0;
+  if (typeof obj === 'object' && obj !== null) {
+    Object.values(obj).forEach(v => {
+      if (typeof v === 'object' && v !== null) {
+        count += Object.keys(v).length;
+      } else {
+        count++;
+      }
+    });
+  }
+  return count;
 }
 
 </script>
