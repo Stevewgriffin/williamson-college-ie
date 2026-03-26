@@ -2776,6 +2776,8 @@ function handleAuth() {
     currentUserName = name;
     currentRole = role;
     currentUser = { email: name, displayName: name };
+    // Remember login in localStorage
+    try { localStorage.setItem('wcAuth', JSON.stringify({name, role})); } catch(e) {}
     // Sign in anonymously to Firebase for database access
     auth.signInAnonymously()
       .then(() => {
@@ -2793,6 +2795,7 @@ function handleAuth() {
 
 function signOut() {
   auth.signOut().catch(() => {});
+  try { localStorage.removeItem('wcAuth'); } catch(e) {}
   document.getElementById("authScreen").style.display = "flex";
   document.getElementById("app").style.display = "none";
   currentUser = null;
@@ -5683,6 +5686,22 @@ function setupDragDrop(zoneId, fileInputId, fileType) {
 
 // Hook up the actual import buttons
 document.addEventListener("DOMContentLoaded", function() {
+  // Auto-login from saved session
+  try {
+    const saved = localStorage.getItem('wcAuth');
+    if (saved) {
+      const {name, role} = JSON.parse(saved);
+      if (name && role && ACCESS_CODES[role]) {
+        currentUserName = name;
+        currentRole = role;
+        currentUser = { email: name, displayName: name };
+        auth.signInAnonymously()
+          .then(() => showApp())
+          .catch(() => showApp());
+      }
+    }
+  } catch(e) { console.warn('Auto-login failed:', e); }
+
   setupDragDrop("enrollmentDropZone", "enrollmentFile", "enrollment");
   setupDragDrop("gradebookDropZone", "gradebookFile", "gradebook");
   setupDragDrop("attendanceDropZone", "attendanceFile", "attendance");
