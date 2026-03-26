@@ -492,9 +492,9 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         </div>
         <div class="card mb-16">
           <h3>Course-to-SLO Mapping Grid</h3>
-          <p class="mb-16" style="font-size:0.85rem">Click cells to cycle: — → I (Introduced) → E (Emphasized) → R (Reinforced) → A (Assessed) → —</p>
+          <p class="mb-16" style="font-size:0.85rem">Legend: <strong style="color:#2980b9">I</strong> = Introduced · <strong style="color:#27ae60">E</strong> = Emphasized · <strong style="color:#e67e22">R</strong> = Reinforced · <strong style="color:#e74c3c">A</strong> = Assessed</p>
           <div style="overflow-x:auto" id="mappingGridContainer"></div>
-          <button class="btn btn-primary mt-16" onclick="saveMappings()">Save Mappings to Firebase</button>
+          <button class="btn btn-primary mt-16" id="saveMappingsBtn" onclick="saveMappings()">Save Mappings to Firebase</button>
         </div>
       </div>
     </div>
@@ -3495,7 +3495,8 @@ function renderMappingGrid() {
 
   const sloCols = currentProgram.slos.map(s => s.id);
 
-  let html = `<div style="margin-bottom:12px"><button class="btn" style="background:var(--gold);color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem" onclick="autoPopulateMappings()">Auto-Populate from Assessment Data</button></div>`;
+  const canEdit = ["admin","dept_chair"].includes(currentRole);
+  let html = canEdit ? `<div style="margin-bottom:12px"><button class="btn" style="background:var(--gold);color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem" onclick="autoPopulateMappings()">Auto-Populate from Assessment Data</button></div>` : '';
   html += `<table class="mapping-grid"><thead><tr><th>Course</th>`;
   sloCols.forEach(sloId => {
     html += `<th>${sloId}</th>`;
@@ -3507,7 +3508,7 @@ function renderMappingGrid() {
     sloCols.forEach(sloId => {
       const key = `${currentProgram.id}-${course.id}-${sloId}`;
       const val = mappings[currentProgram.id] && mappings[currentProgram.id][key] || "-";
-      html += `<td><div class="mapping-cell" data-val="${val}" data-key="${key}" onclick="cycleMappingValue(this)"></div></td>`;
+      html += `<td><div class="mapping-cell" data-val="${val}" data-key="${key}" ${canEdit ? 'onclick="cycleMappingValue(this)"' : ''} style="${canEdit ? 'cursor:pointer' : 'cursor:default'}"></div></td>`;
     });
     html += `</tr>`;
   });
@@ -3519,6 +3520,10 @@ function renderMappingGrid() {
     const val = cell.getAttribute("data-val");
     cell.textContent = val === "-" ? "" : val;
   });
+
+  // Hide save button for non-editors
+  const saveBtn = document.getElementById("saveMappingsBtn");
+  if (saveBtn) saveBtn.style.display = canEdit ? "" : "none";
 }
 
 function autoPopulateMappings() {
