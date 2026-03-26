@@ -645,10 +645,31 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         </div>
       </div>
 
+      <!-- Students Roster Card -->
+      <div class="upload-card">
+        <div class="upload-card-header" onclick="toggleUploadCard(this)">
+          <span>① Student Roster (Recommended First)</span>
+          <span class="upload-card-toggle">▼</span>
+        </div>
+        <div class="upload-card-body">
+          <p class="card-description">Upload the Students export from Populi (People > Students > Export). This maps each Student ID to their actual degree program (BSBA, BSML, ADL, etc.) so enrollment data is categorized correctly. Contains: Student ID, First Name, Last Name, Standing, Program, Degree, GPA, Credits.</p>
+          <div class="upload-zone" id="studentsDropZone">
+            <div class="file-input-wrapper">
+              <input type="file" id="studentsFile" accept=".csv,.xls,.xlsx" onchange="handleStudentsFile(event)">
+              <label class="file-input-label" for="studentsFile">Choose Students File</label>
+            </div>
+            <p style="margin-top:12px;color:#636e72;font-size:0.85rem">or drag and drop CSV/XLS/XLSX file here</p>
+            <div id="studentsFileName" class="selected-file" style="display:none"></div>
+          </div>
+          <div id="studentsPreview"></div>
+          <div id="studentsStatus"></div>
+        </div>
+      </div>
+
       <!-- Enrollment Report Card -->
       <div class="upload-card">
         <div class="upload-card-header" onclick="toggleUploadCard(this)">
-          <span>Enrollment Report (from Populi Academics > Reporting > Enrollment)</span>
+          <span>② Enrollment Report (from Populi Academics > Reporting > Enrollment)</span>
           <span class="upload-card-toggle">▼</span>
         </div>
         <div class="upload-card-body">
@@ -5035,6 +5056,67 @@ function toggleUploadCard(headerEl) {
   card.classList.toggle("expanded");
 }
 
+function handleStudentsFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  uploadedFiles.students = file;
+  updateFileDisplay("students");
+
+  const statusEl = document.getElementById("studentsStatus");
+  statusEl.innerHTML = '<div class="import-status loading">Processing student roster...</div>';
+
+  readFileAsArray(file, function(data) {
+    if (data.length < 2) {
+      statusEl.innerHTML = '<div class="import-status error">File has no data rows</div>';
+      return;
+    }
+
+    const headers = data[0];
+    const headerMap = {};
+    headers.forEach((h, idx) => { headerMap[String(h).toLowerCase().trim()] = idx; });
+
+    const idCol = headerMap["student id"];
+    const degreeCol = headerMap["degree"] !== undefined ? headerMap["degree"] : headerMap["program"];
+    const fnCol = headerMap["first name"];
+    const lnCol = headerMap["last name"];
+    const standingCol = headerMap["standing"];
+    const gpaCol = headerMap["cum. gpa"] !== undefined ? headerMap["cum. gpa"] : headerMap["cum gpa"];
+
+    if (idCol === undefined || degreeCol === undefined) {
+      statusEl.innerHTML = '<div class="import-status error">Could not find Student ID and Degree/Program columns</div>';
+      return;
+    }
+
+    // Build lookup: Student ID → Degree program
+    window._populiStudentLookup = {};
+    const programCounts = {};
+    let totalStudents = 0;
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row || row.length === 0) continue;
+      const sid = String(row[idCol] || "").trim();
+      const degree = String(row[degreeCol] || "").trim();
+      if (sid && degree) {
+        window._populiStudentLookup[sid] = degree;
+        programCounts[degree] = (programCounts[degree] || 0) + 1;
+        totalStudents++;
+      }
+    }
+
+    let previewHTML = `<h4 style="color:var(--maroon);margin:12px 0 8px">Student Roster Summary — ${totalStudents} students loaded</h4>`;
+    previewHTML += '<table class="preview-table"><thead><tr><th>Program</th><th>Students</th></tr></thead><tbody>';
+    Object.entries(programCounts).sort((a,b) => b[1] - a[1]).forEach(([prog, count]) => {
+      previewHTML += `<tr><td><strong>${prog}</strong></td><td>${count}</td></tr>`;
+    });
+    previewHTML += '</tbody></table>';
+    previewHTML += '<p style="font-size:0.8rem;color:var(--success);margin-top:8px">✓ Student-to-program lookup ready. Now import Enrollment data for accurate program mapping.</p>';
+
+    document.getElementById("studentsPreview").innerHTML = previewHTML;
+    statusEl.innerHTML = '<div class="import-status success">Student roster loaded! Enrollment imports will now use accurate program assignments.</div>';
+  });
+}
+
 function handleEnrollmentFile(event) {
   const file = event.target.files[0];
   if (file) {
@@ -5268,8 +5350,21 @@ function importEnrollmentData() {
         const standing = cols.standing !== undefined ? String(row[cols.standing] || "").trim() : "";
         const status = cols.status !== undefined ? String(row[cols.status] || "").trim().toLowerCase() : "";
 
-        // Populi "Program" column often just says "Undergraduate" — map from course prefix instead
-        let program = cols.program !== undefined ? String(row[cols.program] || "").trim() : "";
+        // Use Degree column if available (from Students CSV cross-reference or Enrollments with Degree)
+        let program = "";
+        const studentId = cols.studentId !== undefined ? String(row[cols.studentId] || "").trim() : "";
+
+        // Check if we have a student lookup table (from Students CSV)
+        if (window._populiStudentLookup && studentId && window._populiStudentLookup[studentId]) {
+          program = window._populiStudentLookup[studentId];
+        }
+
+        // Fallback to Program/Degree column
+        if (!program) {
+          program = cols.program !== undefined ? String(row[cols.program] || "").trim() : "";
+        }
+
+        // If still generic, map from course prefix
         if (!program || program.toLowerCase() === "undergraduate" || program.toLowerCase() === "graduate") {
           program = course ? mapCourseToProgram(course) : "Unknown";
         }
