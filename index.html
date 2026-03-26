@@ -370,9 +370,11 @@ textarea.form-textarea:focus { border-color:var(--gold); }
 <!-- Auth Screen -->
 <div class="auth-screen" id="authScreen">
   <div class="auth-box">
-    <h1>Williamson College</h1>
-    <p>Institutional Effectiveness Assessment System</p>
-    <input type="text" id="authName" placeholder="Your name (e.g., Steve Griffin)">
+    <div style="text-align:center;margin-bottom:16px">
+      <h1 style="margin-bottom:4px">Williamson College</h1>
+      <p style="color:var(--gold);font-weight:600;font-size:0.9rem">Institutional Effectiveness Assessment System</p>
+    </div>
+    <input type="email" id="authName" placeholder="Your WC email (e.g., sgriffin@williamsoncc.edu)">
     <select id="authRole">
       <option value="">Select your role...</option>
       <option value="admin">Administrator / IE Director</option>
