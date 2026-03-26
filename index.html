@@ -10,6 +10,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="demo-data.js"></script>
 <style>
 :root {
@@ -2944,13 +2946,45 @@ function uploadSyllabus() {
   const file = fileInput.files[0];
   statusEl.innerHTML = '<div class="import-status loading">Reading syllabus file...</div>';
 
+  // Route by file type
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    // PDF: use PDF.js
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      if (typeof pdfjsLib === 'undefined') {
+        statusEl.innerHTML = '<div class="import-status error">PDF.js library not loaded. Please refresh and try again.</div>';
+        return;
+      }
+      const typedArray = new Uint8Array(e.target.result);
+      pdfjsLib.getDocument(typedArray).promise.then(function(pdf) {
+        const pagePromises = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          pagePromises.push(pdf.getPage(i).then(page => page.getTextContent().then(tc => tc.items.map(item => item.str).join(' '))));
+        }
+        Promise.all(pagePromises).then(function(pages) {
+          const text = pages.join('\n');
+          if (text.length < 50) {
+            statusEl.innerHTML = '<div class="import-status error">Could not extract text from PDF. The file may be scanned/image-based.</div>';
+            return;
+          }
+          processSyllabusText(text, progId, courseId, apiKey, statusEl, file);
+        });
+      }).catch(function(err) {
+        statusEl.innerHTML = '<div class="import-status error">PDF read error: ' + err.message + '</div>';
+      });
+    };
+    reader.readAsArrayBuffer(file);
+    return;
+  }
+
+  // DOCX or TXT
   const reader = new FileReader();
   reader.onload = function(e) {
     let text = '';
-    if (file.name.endsWith('.txt')) {
+    if (file.name.toLowerCase().endsWith('.txt')) {
       text = e.target.result;
-    } else if (file.name.endsWith('.docx')) {
-      // Extract text from docx (which is a zip of XML files)
+    } else if (file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
+      // Extract text from docx (zip of XML files)
       try {
         const arrayBuffer = e.target.result;
         const uint8 = new Uint8Array(arrayBuffer);
@@ -2972,9 +3006,22 @@ function uploadSyllabus() {
     }
 
     if (text.length < 50) {
-      statusEl.innerHTML = '<div class="import-status error">Could not extract text from file. Try .txt format.</div>';
+      statusEl.innerHTML = '<div class="import-status error">Could not extract enough text from file. Try saving as .txt or .pdf first.</div>';
       return;
     }
+
+    processSyllabusText(text, progId, courseId, apiKey, statusEl, file);
+  };
+
+  if (file.name.toLowerCase().endsWith('.txt')) {
+    reader.readAsText(file);
+  } else {
+    reader.readAsArrayBuffer(file);
+  }
+  return;
+}
+
+function processSyllabusText(text, progId, courseId, apiKey, statusEl, file) {
 
     statusEl.innerHTML = '<div class="import-status loading">AI is extracting SLOs and assessment instruments...</div>';
 
@@ -3083,13 +3130,6 @@ ${text.substring(0, 8000)}`;
     .catch(err => {
       statusEl.innerHTML = `<div class="import-status error">Network error: ${err.message}</div>`;
     });
-  };
-
-  if (file.name.endsWith('.txt')) {
-    reader.readAsText(file);
-  } else {
-    reader.readAsArrayBuffer(file);
-  }
 }
 
 // Update loadFacultyReportForm to check for syllabus data, then fall back to COURSE_INSTRUMENTS
