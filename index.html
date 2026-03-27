@@ -288,7 +288,7 @@ textarea.form-textarea:focus { border-color:var(--gold); }
 .btn-import:disabled { background: #636e72; cursor: not-allowed; }
 
 /* ============ HAMBURGER MOBILE NAV ============ */
-.hamburger { display:none; background:none; border:none; color:white; font-size:1.5rem; cursor:pointer; padding:8px 12px; }
+.hamburger { display:none; background:var(--maroon); border:none; color:white; font-size:1.5rem; cursor:pointer; padding:8px 12px; border-radius:6px; }
 .tab-list { display:flex; gap:0; flex-wrap:wrap; }
 
 @media (max-width: 768px) {
@@ -637,7 +637,13 @@ textarea.form-textarea:focus { border-color:var(--gold); }
       <div class="card" style="margin-top:24px;border-left:4px solid var(--gold)">
         <h3 style="color:var(--maroon);margin-bottom:4px">Syllabus Upload (Department Chair)</h3>
         <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px">Upload a course syllabus (.docx or .txt) and AI will extract SLOs and assessment instruments. This data permanently populates the Faculty Report form for this course until a new syllabus is uploaded.</p>
+        <div style="margin-bottom:12px;position:relative">
+          <label style="font-size:0.8rem;font-weight:600;color:var(--muted);display:block;margin-bottom:4px">Quick Search by Course Number</label>
+          <input type="text" id="syllabusCourseSearch" placeholder="Type course number (e.g., OL 565, MGT 311, BL 201)..." oninput="searchSyllabusCourse(this.value)" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;width:100%;max-width:400px;font-size:0.9rem">
+          <div id="syllabusCourseSearchResults" style="display:none;position:absolute;top:100%;left:0;background:white;border:1px solid #ddd;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-height:250px;overflow-y:auto;z-index:100;width:100%;max-width:400px"></div>
+        </div>
         <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:0.8rem;color:var(--muted);font-weight:600">— or browse by program —</span>
           <select class="form-select" id="syllabusProgram" onchange="populateSyllabusCourses()">
             <option value="">Select Program...</option>
           </select>
@@ -3398,6 +3404,59 @@ function renderCatalogCourses(container, level, search) {
 // ============================================================
 // SLO DRILL-DOWN CASCADE
 // ============================================================
+function applySLOOverrides() {
+  // Apply course SLO overrides
+  if (sloOverrides.courses && typeof COURSE_SLOS !== 'undefined') {
+    Object.entries(sloOverrides.courses).forEach(([courseKey, courseOverride]) => {
+      if (COURSE_SLOS[courseKey] && courseOverride.slos) {
+        Object.entries(courseOverride.slos).forEach(([sloIdx, newText]) => {
+          if (COURSE_SLOS[courseKey].slos[sloIdx]) {
+            COURSE_SLOS[courseKey].slos[sloIdx].text = newText;
+          }
+        });
+      }
+    });
+  }
+  // Apply PLO overrides
+  if (sloOverrides.programs) {
+    Object.entries(sloOverrides.programs).forEach(([progId, progOverride]) => {
+      const prog = PROGRAMS.find(p => p.id === progId);
+      if (prog && progOverride.plos) {
+        Object.entries(progOverride.plos).forEach(([ploIdx, newData]) => {
+          if (prog.slos[ploIdx]) {
+            if (newData.text) prog.slos[ploIdx].text = newData.text;
+            if (newData.name) prog.slos[ploIdx].name = newData.name;
+          }
+        });
+      }
+    });
+  }
+}
+
+function saveSLOEdit(type, parentKey, index, newText) {
+  if (!newText || !newText.trim()) return;
+  const path = type === 'course' ? `sloOverrides/courses/${parentKey}/slos/${index}` : `sloOverrides/programs/${parentKey}/plos/${index}/text`;
+  db.ref(path).set(newText.trim()).then(() => {
+    // Update in-memory data
+    if (type === 'course' && COURSE_SLOS[parentKey] && COURSE_SLOS[parentKey].slos[index]) {
+      COURSE_SLOS[parentKey].slos[index].text = newText.trim();
+    } else if (type === 'plo') {
+      const prog = PROGRAMS.find(p => p.id === parentKey);
+      if (prog && prog.slos[index]) prog.slos[index].text = newText.trim();
+    }
+    showToast('SLO updated and saved');
+  });
+}
+
+function savePLONameEdit(progId, index, newName) {
+  if (!newName || !newName.trim()) return;
+  db.ref(`sloOverrides/programs/${progId}/plos/${index}/name`).set(newName.trim()).then(() => {
+    const prog = PROGRAMS.find(p => p.id === progId);
+    if (prog && prog.slos[index]) prog.slos[index].name = newName.trim();
+    showToast('PLO name updated and saved');
+  });
+}
+
 function openDrilldown(courseKey, progId) {
   console.log('openDrilldown called with:', courseKey, progId);
   console.log('COURSE_SLOS keys sample:', Object.keys(COURSE_SLOS).slice(0,5));
@@ -3426,21 +3485,34 @@ function openDrilldown(courseKey, progId) {
       <div class="cascade-box plo">
         <h4>Program PLOs${prog ? ` (${prog.id})` : ''}</h4>
         <ul style="padding-left:16px;margin:0">
-          ${prog && prog.slos ? prog.slos.map(s => `<li style="font-size:0.78rem;margin-bottom:2px"><strong>${s.name || s.id}:</strong> ${s.text}</li>`).join('') : '<li>N/A</li>'}
+          ${prog && prog.slos ? prog.slos.map((s, i) => {
+            const canEditSLO = ["admin","dept_chair"].includes(currentRole);
+            return `<li style="font-size:0.78rem;margin-bottom:4px">
+              <strong>${s.name || s.id}:</strong>
+              ${canEditSLO ? `<span class="editable-slo" contenteditable="true" style="border-bottom:1px dashed #ccc;padding:1px 2px;outline:none" onblur="saveSLOEdit('plo','${prog.id}',${i},this.textContent)">${s.text}</span>` : s.text}
+            </li>`;
+          }).join('') : '<li>N/A</li>'}
         </ul>
       </div>
     </div>
     <h4 style="margin:20px 0 12px;color:var(--maroon)">Course-Level Student Learning Outcomes</h4>
   `;
 
-  courseData.slos.forEach(slo => {
+  const canEditSLO = ["admin","dept_chair"].includes(currentRole);
+  courseData.slos.forEach((slo, idx) => {
     html += `
       <div class="slo-item">
         <span class="slo-num">SLO ${slo.number}</span>
-        <p class="slo-text">${slo.text}</p>
+        ${canEditSLO
+          ? `<p class="slo-text" contenteditable="true" style="border:1px dashed transparent;padding:4px 6px;border-radius:4px;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='transparent';saveSLOEdit('course','${courseKey}',${idx},this.textContent)">${slo.text}</p>`
+          : `<p class="slo-text">${slo.text}</p>`
+        }
       </div>
     `;
   });
+  if (canEditSLO) {
+    html += '<p style="font-size:0.75rem;color:var(--muted);margin-top:8px;font-style:italic">Click any SLO or PLO text to edit. Changes save automatically.</p>';
+  }
 
   // Assessment instruments if available
   if (typeof ASSESSMENT_INSTRUMENTS !== 'undefined' && prog) {
@@ -3600,7 +3672,10 @@ function loadFacultyReportForm() {
         <div class="form-group"><label>Term / Year</label><input type="text" value="${term}" readonly></div>
         <div class="form-group"><label>Instructor</label><input type="text" id="frInstructor" placeholder="Enter instructor name"></div>
       </div>
-      <div class="form-group" style="margin-bottom:12px"><label style="font-size:0.8rem;font-weight:600;color:var(--muted)">Enrollment</label><input type="number" id="frEnrollment" placeholder="Number of students" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;width:200px"></div>
+      <div class="form-group" style="margin-bottom:12px;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div><label style="font-size:0.8rem;font-weight:600;color:var(--muted)">Enrollment</label><input type="number" id="frEnrollment" placeholder="Number of students" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;width:200px"></div>
+        <button id="viewSyllabusBtn" onclick="viewCourseSyllabus()" style="padding:8px 16px;background:var(--maroon);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:0.85rem;display:none">View Syllabus</button>
+      </div>
 
       <table class="fr-slo-table">
         <thead>
@@ -3733,6 +3808,69 @@ function populateSyllabusCourses() {
     sel.innerHTML += `<option value="${c.id}">${c.code || c.id} - ${c.name}</option>`;
   });
 }
+
+function searchSyllabusCourse(query) {
+  const resultsDiv = document.getElementById('syllabusCourseSearchResults');
+  if (!resultsDiv) return;
+  query = query.trim().toLowerCase().replace(/\s+/g, '');
+  if (query.length < 2) { resultsDiv.style.display = 'none'; return; }
+
+  const matches = [];
+  PROGRAMS.forEach(prog => {
+    (prog.courses || []).forEach(course => {
+      const code = (course.code || course.id || '').toLowerCase().replace(/\s+/g, '');
+      const name = (course.name || '').toLowerCase();
+      if (code.includes(query) || name.includes(query)) {
+        matches.push({ prog, course });
+      }
+    });
+  });
+
+  if (matches.length === 0) {
+    resultsDiv.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:0.85rem">No courses found</div>';
+    resultsDiv.style.display = 'block';
+    return;
+  }
+
+  // Deduplicate by course id (same course may appear in multiple programs)
+  const seen = new Set();
+  let html = '';
+  matches.forEach(m => {
+    const key = m.course.id + '|' + m.prog.id;
+    if (seen.has(key)) return;
+    seen.add(key);
+    html += `<div style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:0.85rem;display:flex;justify-content:space-between;align-items:center"
+      onmouseover="this.style.background='#f0f0ff'" onmouseout="this.style.background='white'"
+      onclick="selectSyllabusCourseFromSearch('${m.prog.id}','${m.course.id}')">
+      <span><strong>${m.course.code || m.course.id}</strong> — ${m.course.name}</span>
+      <span style="font-size:0.75rem;color:var(--muted);background:#f0f0f0;padding:2px 6px;border-radius:4px">${m.prog.id}</span>
+    </div>`;
+  });
+  resultsDiv.innerHTML = html;
+  resultsDiv.style.display = 'block';
+}
+
+function selectSyllabusCourseFromSearch(progId, courseId) {
+  // Set program dropdown
+  const progSel = document.getElementById('syllabusProgram');
+  progSel.value = progId;
+  populateSyllabusCourses();
+  // Set course dropdown
+  const courseSel = document.getElementById('syllabusCourse');
+  courseSel.value = courseId;
+  // Clear search
+  document.getElementById('syllabusCourseSearch').value = '';
+  document.getElementById('syllabusCourseSearchResults').style.display = 'none';
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', e => {
+  const results = document.getElementById('syllabusCourseSearchResults');
+  const input = document.getElementById('syllabusCourseSearch');
+  if (results && input && !results.contains(e.target) && e.target !== input) {
+    results.style.display = 'none';
+  }
+});
 
 function initSyllabusSection() {
   const sel = document.getElementById('syllabusProgram');
@@ -3870,28 +4008,43 @@ function processSyllabusText(text, progId, courseId, apiKey, statusEl, file) {
     const courseCode = course?.code || courseId;
     const courseName = course?.name || '';
 
+    // Get the NEW revised SLOs for this course from COURSE_SLOS
+    const courseKey2 = courseId.replace(/[^A-Za-z0-9]/g, '');
+    const revisedCourseData = (typeof COURSE_SLOS !== 'undefined') ? COURSE_SLOS[courseKey2] : null;
+    let revisedSLOsText = '';
+    if (revisedCourseData && revisedCourseData.slos) {
+      revisedSLOsText = '\n\nOFFICIAL REVISED SLOs FOR THIS COURSE (use these as the SLO text, NOT the syllabus SLOs):\n';
+      revisedCourseData.slos.forEach(s => {
+        revisedSLOsText += `  SLO ${s.number}: ${s.text}\n`;
+      });
+    }
+
     // Send to Claude for extraction
-    const prompt = `You are analyzing a college course syllabus. Extract the following data and return it as valid JSON only (no markdown, no explanation):
+    const prompt = `You are analyzing a college course syllabus to extract assessment instruments (assignments, exams, projects, papers, presentations) and map them to the course's OFFICIAL revised Student Learning Outcomes.
+
+Return valid JSON only (no markdown, no explanation):
 
 {
   "courseCode": "${courseCode}",
   "courseTitle": "${courseName}",
   "instructor": "extracted instructor name",
-  "description": "course description from syllabus",
+  "courseDescription": "course description from syllabus",
   "slos": [
-    {"number": 1, "text": "SLO 1 text exactly as written", "assessmentInstrument": "the specific assignment/exam that measures this SLO", "howMeasured": "rubric criterion, exam questions, etc."},
-    {"number": 2, "text": "SLO 2 text", "assessmentInstrument": "...", "howMeasured": "..."},
-    ...
+    {"number": 1, "text": "THE OFFICIAL REVISED SLO text (provided below)", "assessmentInstrument": "the specific assignment/exam from the syllabus that best measures this SLO", "howMeasured": "how it is measured - rubric, exam questions, paper criteria, etc."},
+    {"number": 2, "text": "...", "assessmentInstrument": "...", "howMeasured": "..."}
   ],
   "gradingPolicy": "brief grading breakdown",
   "requiredTexts": ["text1", "text2"]
 }
 
-IMPORTANT:
-- Extract ALL Student Learning Outcomes (usually 5)
-- For each SLO, identify which assignment/exam/project measures it based on the grading section and assignments described
-- If the syllabus doesn't explicitly map SLOs to assignments, infer the best match from the assignment descriptions
-- Return ONLY valid JSON, no other text
+CRITICAL INSTRUCTIONS:
+- The "text" field for each SLO MUST use the OFFICIAL REVISED SLO text provided below, NOT the old SLOs from the syllabus
+- The syllabus may have different/older SLO wording — IGNORE the syllabus SLO text and use the official ones
+- For each official SLO, find the best matching assignment/exam/project from the syllabus that measures it
+- Match by analyzing what each assignment assesses vs what each SLO requires
+- Be specific about the instrument — use the actual assignment name from the syllabus (e.g., "Colonial Pipeline Case Study Essay" not "Case Study")
+- If no clear match exists for an SLO, use the closest assignment and note it
+- Return ONLY valid JSON${revisedSLOsText}
 
 Here is the syllabus text:
 ${text.substring(0, 8000)}`;
@@ -4015,10 +4168,10 @@ loadFacultyReportForm = function() {
           const matchingSLO = courseData.slos.find(s => s.number === slo.number);
           if (matchingSLO) {
             const instInput = document.getElementById(`fr_inst_${matchingSLO.id}`);
-            if (instInput && !instInput.value) {
-              instInput.value = slo.assessmentInstrument || '';
+            if (instInput && slo.assessmentInstrument) {
+              instInput.value = slo.assessmentInstrument;
               instInput.style.background = '#f0fff0';
-              instInput.title = 'Auto-populated from syllabus';
+              instInput.title = 'Auto-populated from uploaded syllabus (overrides matrix)';
               syllabusPopulated = true;
             }
           }
@@ -4027,13 +4180,20 @@ loadFacultyReportForm = function() {
 
       // Auto-fill instructor if available
       const instrInput = document.getElementById('frInstructor');
-      if (instrInput && !instrInput.value && syllabusData.instructor) {
+      if (instrInput && syllabusData.instructor) {
         instrInput.value = syllabusData.instructor;
         instrInput.style.background = '#f0fff0';
       }
 
       if (syllabusPopulated) {
         showToast('Assessment instruments auto-populated from uploaded syllabus');
+      }
+
+      // Show View Syllabus button
+      const viewBtn = document.getElementById('viewSyllabusBtn');
+      if (viewBtn) {
+        viewBtn.style.display = 'inline-block';
+        viewBtn.setAttribute('data-course-key', courseKey);
       }
 
       // Priority 2: Fill any remaining empty SLO instruments from COURSE_INSTRUMENTS
@@ -4044,6 +4204,71 @@ loadFacultyReportForm = function() {
     }
   });
 };
+
+function viewCourseSyllabus() {
+  const btn = document.getElementById('viewSyllabusBtn');
+  const courseKey = btn ? btn.getAttribute('data-course-key') : null;
+  if (!courseKey) { showToast('No syllabus available for this course'); return; }
+
+  db.ref(`syllabi/${courseKey}`).once('value', snap => {
+    const data = snap.val();
+    if (!data) { showToast('No syllabus uploaded for this course'); return; }
+
+    let html = `<div style="max-width:800px;margin:0 auto;font-family:var(--font)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <h2 style="color:var(--maroon);margin:0">${data.courseCode || ''} — ${data.courseTitle || ''}</h2>
+        <button onclick="document.getElementById('syllabusViewerModal').style.display='none'" style="padding:6px 16px;background:var(--maroon);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600">Close</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:#f8f9fa;padding:10px 14px;border-radius:8px"><strong>Instructor:</strong> ${data.instructor || '—'}</div>
+        <div style="background:#f8f9fa;padding:10px 14px;border-radius:8px"><strong>Program:</strong> ${data.program || '—'}</div>
+        <div style="background:#f8f9fa;padding:10px 14px;border-radius:8px"><strong>Uploaded by:</strong> ${data.uploadedBy || '—'}</div>
+        <div style="background:#f8f9fa;padding:10px 14px;border-radius:8px"><strong>File:</strong> ${data.fileName || '—'}</div>
+      </div>`;
+
+    if (data.courseDescription) {
+      html += `<div style="background:#fefce8;padding:12px 16px;border-radius:8px;margin-bottom:16px;border-left:4px solid var(--gold)">
+        <strong>Course Description:</strong><br>${data.courseDescription}</div>`;
+    }
+
+    if (data.slos && data.slos.length) {
+      html += `<h3 style="color:var(--maroon);margin:16px 0 8px">Student Learning Outcomes & Assessment Instruments</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+          <thead><tr style="background:var(--maroon);color:white">
+            <th style="padding:8px;text-align:left;width:5%">#</th>
+            <th style="padding:8px;text-align:left;width:50%">SLO</th>
+            <th style="padding:8px;text-align:left;width:45%">Assessment Instrument</th>
+          </tr></thead><tbody>`;
+      data.slos.forEach((slo, i) => {
+        html += `<tr style="background:${i%2===0?'#fff':'#f8f9fa'}">
+          <td style="padding:8px;font-weight:600">${slo.number || i+1}</td>
+          <td style="padding:8px">${slo.text || '—'}</td>
+          <td style="padding:8px;color:var(--success);font-weight:500">${slo.assessmentInstrument || '—'}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    }
+
+    if (data.gradingPolicy) {
+      html += `<h3 style="color:var(--maroon);margin:16px 0 8px">Grading Policy</h3>
+        <div style="background:#f8f9fa;padding:12px 16px;border-radius:8px;white-space:pre-wrap">${data.gradingPolicy}</div>`;
+    }
+
+    html += '</div>';
+
+    // Show in modal
+    let modal = document.getElementById('syllabusViewerModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'syllabusViewerModal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10000;overflow-y:auto;padding:24px';
+      modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `<div style="background:white;border-radius:12px;padding:24px;max-width:900px;margin:24px auto;box-shadow:0 8px 32px rgba(0,0,0,0.3)">${html}</div>`;
+    modal.style.display = 'block';
+  });
+}
 
 // ============================================================
 // DATA FILING SYSTEM FOR SACSCOC
@@ -4192,6 +4417,7 @@ let currentUserName = "";
 let currentProgram = null;
 let surveyResponses = {};
 let mappings = {};
+let sloOverrides = {}; // Firebase overrides for SLO/PLO text
 let selectedMonth = null;
 let currentMonthData = {};
 let institutionalDataCharts = {};
@@ -4265,6 +4491,20 @@ function showApp() {
 // ============================================================
 function initializeApp() {
   updateTabVisibility();
+  // Pre-load all program mappings from Firebase so badges show correctly
+  db.ref('mappings').once('value', snap => {
+    const allMappings = snap.val() || {};
+    Object.keys(allMappings).forEach(progId => {
+      mappings[progId] = allMappings[progId];
+    });
+    renderPrograms();
+  });
+  // Load SLO/PLO overrides
+  db.ref('sloOverrides').once('value', snap => {
+    sloOverrides = snap.val() || {};
+    // Apply overrides to in-memory data
+    applySLOOverrides();
+  });
   renderPrograms();
   populateSurveyPrograms();
   populateResultsPrograms();
@@ -4914,7 +5154,16 @@ function openMappingDetail(progId) {
   renderMappingGrid();
 
   db.ref(`mappings/${progId}`).once("value", snap => {
-    mappings[progId] = snap.val() || {};
+    const saved = snap.val();
+    if (saved && Object.keys(saved).length > 0) {
+      mappings[progId] = saved;
+      renderMappingGrid();
+    } else {
+      // No saved mappings — auto-generate and save
+      mappings[progId] = {};
+      renderMappingGrid();
+      autoPopulateMappings();
+    }
   });
 }
 
@@ -5005,14 +5254,19 @@ function autoPopulateMappings() {
 
         // If no instrument match, check if course SLO text mentions PLO concepts
         if (mapping === "-" && courseSLOs.slos.length > 0) {
-          const ploWords = (plo.name || plo.text || '').toLowerCase().split(/\s+/);
-          const keyTerms = ploWords.filter(w => w.length > 4);
+          // Use both PLO name AND full PLO text for matching
+          const ploFullText = ((plo.name || '') + ' ' + (plo.text || '')).toLowerCase();
+          const ploWords = ploFullText.split(/\s+/);
+          const keyTerms = [...new Set(ploWords.filter(w => w.length > 4 && !['demonstrate','apply','through','students','including','grounded','leadership'].includes(w)))];
           const sloTexts = courseSLOs.slos.map(s => s.text.toLowerCase()).join(' ');
-          const matches = keyTerms.filter(t => sloTexts.includes(t));
-          if (matches.length >= 2) {
-            mapping = "R"; // Reinforced
+          // Also check course title for relevance
+          const courseTitle = (courseSLOs.title || course.name || '').toLowerCase();
+          const combinedText = sloTexts + ' ' + courseTitle;
+          const matches = keyTerms.filter(t => combinedText.includes(t));
+          if (matches.length >= 3) {
+            mapping = "R"; // Reinforced - strong conceptual overlap
           } else if (matches.length >= 1) {
-            mapping = "I"; // Introduced
+            mapping = "I"; // Introduced - some conceptual overlap
           }
         }
       }
@@ -5026,7 +5280,9 @@ function autoPopulateMappings() {
     });
   });
 
-  showToast("Mapping auto-populated from assessment data. Review and adjust, then save.");
+  // Auto-save to Firebase so it persists
+  saveMappings();
+  showToast("Mapping auto-populated and saved. Adjust any cells as needed — changes save automatically.");
 }
 
 function cycleMappingValue(cell) {
@@ -5037,6 +5293,8 @@ function cycleMappingValue(cell) {
 
   cell.setAttribute("data-val", next);
   cell.textContent = next === "-" ? "" : next;
+  // Auto-save on every cell change
+  saveMappings();
 }
 
 function saveMappings() {
