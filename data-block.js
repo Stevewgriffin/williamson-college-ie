@@ -292,6 +292,7 @@ const PROGRAMS = [
 const COURSE_SLOS = {
   "LD201": {
     code: "LD 201", title: "Biblical Concepts of Leadership", credits: 3,
+    description: "Although the Bible is not specifically intended to be a leadership training manual, embedded on almost every page of the text are significant leadership concepts and examples. The focus of this course is to expose and examine many of these important principles. The intention of the course is for us to not only gain intellectual understanding, but also enable application of these ideas in current personal development and future leadership opportunities.",
     program: "bsba", category: "core",
     slos: [
       { id: "LD_201_SLO1", number: 1, text: "Identify and explain at least five biblical leadership principles drawn from both Old and New Testament narratives." },
@@ -303,6 +304,7 @@ const COURSE_SLOS = {
   },
   "BL201": {
     code: "BL 201", title: "Old Testament Studies I", credits: 3,
+    description: "This course is a study of the early history of God's people in the Old Testament as recorded from Genesis through Solomon. We will begin with an exploration of the Pentateuch, the five books of Moses, Genesis through Deuteronomy. Then, the History books Joshua through Ruth will be reviewed. Samuel will transition us to the United Kingdom of Saul, David, and Solomon. Most of the Poetic Books, known as the Wisdom Literature of the Old Testament, were written as this time; they will also be included in the content for this course.",
     program: "bsba", category: "core",
     slos: [
       { id: "BL_201_SLO1", number: 1, text: "Outline the major narrative arc of the Old Testament from Genesis through the United Monarchy." },
@@ -314,6 +316,7 @@ const COURSE_SLOS = {
   },
   "CT251": {
     code: "CT 251", title: "Introduction to Biblical Worldview", credits: 3,
+    description: "This course has been designed to establish a solid foundation for future courses with advanced systematic, historical, and philosophical theological emphases. Christian Doctrine I/II (systematic) will build on your biblical understanding of the Christian Faith; and Church History (historical) will depict the development of the Christian Faith through the last two millennia. Both philosophical theology courses will also expand your knowledge of what you will learn in this course. Biblical Ethics will enable you to make good decisions for life; and Introduction to Apologetics will prepare you to defend the Christian Faith from criticism.",
     program: "bsba", category: "core",
     slos: [
       { id: "CT_251_SLO1", number: 1, text: "Define the components of a worldview and distinguish a biblical worldview from at least two alternatives." },
@@ -325,6 +328,7 @@ const COURSE_SLOS = {
   },
   "BL202": {
     code: "BL 202", title: "Old Testament Studies II", credits: 3,
+    description: "This course is a study of the history of God's people in the Old Testament from the Divided Monarchy through the Post-Babylonian Captivity. The foundation for the course will be the chronological sequence of the Kings through the Esther Historical books. Isaiah through Malachi, known as Old Testament Prophets, also prophesied during this time; these books will be integrated into the content for this course. The final layer of study for the course will include an exposure to contemporary World Civilizations, including Assyria, Babylon and Persia.",
     program: "bsba", category: "core",
     slos: [
       { id: "BL_202_SLO1", number: 1, text: "Trace the historical sequence from the Divided Monarchy through the Post-Babylonian Captivity." },
@@ -336,6 +340,7 @@ const COURSE_SLOS = {
   },
   "BL212": {
     code: "BL 212", title: "New Testament Survey", credits: 3,
+    description: "This Survey course will include core components for building a foundational understanding of the New Testament that will enrich more in-depth courses of study later. The first component will explore NT backgrounds from the Intertestamental Period beginning with the Greek Empire. A second component will focus on the introducing the Gospels and the life of Christ in particular. A third component will discover the early church launch and development, with key focus on the ministries and writings of Peter and Paul. The final component will review the final books of the New Testament, emphasizing the ministry and writings of the Apostle John.",
     program: "bsba", category: "core",
     slos: [
       { id: "BL_212_SLO1", number: 1, text: "Describe the historical, cultural, and political context of the Intertestamental Period." },
@@ -347,6 +352,7 @@ const COURSE_SLOS = {
   },
   "ACCT301": {
     code: "ACCT 301", title: "Principles of Accounting I", credits: 3,
+    description: "This is the first course in accounting and will introduce the student to the financial language of business. The student will follow the basic business transaction through the complete accounting cycle. The student will learn the processes for sales and receivables, purchases and payables, and cash and banking procedures.",
     program: "bsba", category: "core",
     slos: [
       { id: "ACCT_301_SLO1", number: 1, text: "Record business transactions using double-entry bookkeeping through the complete accounting cycle." },
@@ -358,6 +364,7 @@ const COURSE_SLOS = {
   },
   "ECON301": {
     code: "ECON 301", title: "Principles of Macroeconomics", credits: 3,
+    description: "This course will equip students to explore the levers that move the economy at the macro and micro levels and make business decisions to impact their companies positively. Rather than a deep dive into economic theory and the supporting mathematical formulas, students will learn essential economic vocabulary and the application of the economic methodologies in a global, national, and local context. Students will also explore the influences at the individual consumer, firm, and industry levels.",
     program: "bsba", category: "core",
     slos: [
       { id: "ECON_301_SLO1", number: 1, text: "Explain key macroeconomic indicators (GDP, unemployment, inflation) and interpret their trends." },
@@ -369,6 +376,7 @@ const COURSE_SLOS = {
   },
   "MGT311": {
     code: "MGT 311", title: "Entrepreneurship and Small Business", credits: 3,
+    description: "Creativity, opportunity, leadership, excellence, and profit combined into an entrepreneurial approach to achieve the mission in small business.",
     program: "bsba", category: "core",
     slos: [
       { id: "MGT_311_SLO1", number: 1, text: "Develop a complete business plan including mission, market analysis, and financial projections." },
@@ -380,6 +388,7 @@ const COURSE_SLOS = {
   },
   "MGT301": {
     code: "MGT 301", title: "Essentials of Management", credits: 3,
+    description: "A study of the five parts of managing organizations\u2014planning, organizing, staffing, leading and controlling/evaluation\u2014with the study of principles for application to both not-for-profit and for-profit organizations with references to Scripture.",
     program: "bsba", category: "core",
     slos: [
       { id: "MGT_301_SLO1", number: 1, text: "Explain and apply the five management functions to organizational scenarios." },
@@ -391,6 +400,7 @@ const COURSE_SLOS = {
   },
   "CT330": {
     code: "CT 330", title: "Christian Doctrine II", credits: 3,
+    description: "Using a systematic theology approach, this course will focus on the second five of the ten major doctrines of the Bible. Christology, the doctrine of Christ, will be the first theme addressed; followed by Soteriology, including provision and application of Salvation. Pneumatology will consider the person and work of the Holy Spirit, in conjunction with Ecclesiology, the doctrine of the New Testament Church. Eschatology will be the final doctrine studied, including all key Future Events.",
     program: "bsba", category: "core",
     slos: [
       { id: "CT_330_SLO1", number: 1, text: "Articulate the key tenets of Christology, Soteriology, Pneumatology, Ecclesiology, and Eschatology." },
@@ -402,6 +412,7 @@ const COURSE_SLOS = {
   },
   "MGT361": {
     code: "MGT 361", title: "Introduction to Sales", credits: 3,
+    description: "This course focuses on building relationships which is the key to a successful sales career. The eight-step sales cycle is studied and learned. Attitude, one of the building blocks for achieving success in selling, verbal and nonverbal communication and social style make up the some of the other concepts covered in this course. Tying these concepts into a Biblical perspective is critical for the professional salesperson who wants to conduct themselves in an honest and ethical manner.",
     program: "bsba", category: "core",
     slos: [
       { id: "MGT_361_SLO1", number: 1, text: "Execute the eight-step sales cycle from prospecting through closing in a simulation exercise." },
@@ -413,6 +424,7 @@ const COURSE_SLOS = {
   },
   "MGT381": {
     code: "MGT 381", title: "Organizational Behavior", credits: 3,
+    description: "Organizational Behavior holds some of the most fascinating dimensions in the discipline of Organizational Studies. The fact that all organizations are comprised of human beings allows them to be dynamic organisms. Healthy organizations are growing and thriving enterprises, whereas unhealthy ones can become static, rigid and even toxic. The differences in these cultures come from the composition and function of numerous components within the organization. This course will consider several, primary components including studying the overall organizational structure and culture; analyzing personnel, including leaders and individual staff members; considering team design and function; and finally, reviewing the factors that foster or inhibit change.",
     program: "bsba", category: "core",
     slos: [
       { id: "MGT_381_SLO1", number: 1, text: "Analyze an organization’s culture using a recognized diagnostic framework." },
@@ -424,6 +436,7 @@ const COURSE_SLOS = {
   },
   "ACCT310": {
     code: "ACCT 310", title: "Introduction to Finance", credits: 3,
+    description: "This course focuses on the fundamental principles of finances. The basic knowledge, concepts, and terms of the discipline are appropriate for all students. Biblical concepts of sound financial decision making will be covered as it relates to the current economy both from a personal and business point of view.",
     program: "bsba", category: "core",
     slos: [
       { id: "ACCT_310_SLO1", number: 1, text: "Define and apply time value of money concepts to business decisions." },
@@ -435,6 +448,7 @@ const COURSE_SLOS = {
   },
   "MKT361": {
     code: "MKT 361", title: "Marketing", credits: 3,
+    description: "Managers and their understanding of the role of marketing for an organization. Emphasis will be given to the factors that affect consumer behavior, the development and evaluation of an organization's marketing strategies, and the fundamental marketing variables.",
     program: "bsba", category: "core",
     slos: [
       { id: "MKT_361_SLO1", number: 1, text: "Identify and segment a target market using demographic and psychographic data." },
@@ -446,6 +460,7 @@ const COURSE_SLOS = {
   },
   "MGT371": {
     code: "MGT 371", title: "Managing Yourself, Managing Others", credits: 3,
+    description: "Managers are only effective when they understand themselves well. Once they have insights into their own mental constructs, then they can influence others effectively. This course explores 1) the manager as a person, 2) influencing and managing different types of people, 3) how to manage others regardless of organizational position, and 4) leading teams effectively. We begin with understanding yourself as a potential manager, then we move on to management theories regarding motivation, personal growth, and effective communication. We also explore conflict, generational issues in the workplace, and gender issues. MGT 371 gives the student a solid working knowledge of all these topics, while providing useful, practical strategies and tips to be an effective manager and leader.",
     program: "bsba", category: "core",
     slos: [
       { id: "MGT_371_SLO1", number: 1, text: "Assess personal management style using a validated self-assessment instrument." },
@@ -457,6 +472,7 @@ const COURSE_SLOS = {
   },
   "BUSPS450": {
     code: "BUS/PS 450", title: "Business Law", credits: 3,
+    description: "This course will introduce several areas of legal responsibility, risk, and exposure to small and medium-sized businesses. Students will learn how to select and work with an attorney and form and work with a board of directors. Exposure to operational liability, insurance, and bankruptcy protection will equip students to recognize and mitigate business risk. Students will also study the processes of buying and selling a business entity. Several guest lecturers will address essential topics surrounding contract law, employment law, and business formations.",
     program: "bsba", category: "core",
     slos: [
       { id: "BUS_PS_450_SLO1", number: 1, text: "Identify the major areas of legal liability facing businesses and explain mitigation strategies." },
@@ -468,6 +484,7 @@ const COURSE_SLOS = {
   },
   "BUS301": {
     code: "BUS 301", title: "Business as Mission", credits: 3,
+    description: "A comprehensive guide to the theory and practice of Business as Mission. This course explores conceptual foundations for understanding BAM's place in global mission and equips students with practical knowledge for implementing kingdom-strategic business ventures. (Can substitute MIS 300/MIS 301)",
     program: "bsba", category: "core",
     slos: [
       { id: "BUS_301_SLO1", number: 1, text: "Articulate the theological foundations for Business as Mission as a global engagement strategy." },
@@ -479,6 +496,7 @@ const COURSE_SLOS = {
   },
   "CT403": {
     code: "CT 403", title: "Biblical Ethics", credits: 3,
+    description: "This is a study of complexities of our modern world and how we live in it as Christians. This course will demonstrate that Christian ethics is ultimately rooted in the nature and actions of God and in the worldview derived from the biblical story. A biblical worldview acts as the basis for decision-making when facing ethical issues of life.",
     program: "bsba", category: "core",
     slos: [
       { id: "CT_403_SLO1", number: 1, text: "Explain how a biblical worldview provides the foundation for ethical decision-making." },
@@ -490,6 +508,7 @@ const COURSE_SLOS = {
   },
   "LD471": {
     code: "LD 471", title: "Leadership: Theory and Practice", credits: 3,
+    description: "Case studies will be selected for in-depth study of the application of leadership concepts with reference to those concepts found in Scripture. Students will develop a written analysis of their style of leadership. Related issues are introduced through readings.",
     program: "bsba", category: "core",
     slos: [
       { id: "LD_471_SLO1", number: 1, text: "Compare and evaluate at least five major leadership theories and their biblical parallels." },
@@ -501,6 +520,7 @@ const COURSE_SLOS = {
   },
   "MGT441": {
     code: "MGT 441", title: "Principles and Issues in Business Risk", credits: 3,
+    description: "This course is designed to explore the various risks that businesses face daily. Dealing with BR from a Biblical basis can be challenging for those who don't have a solid foundation; hence the biblical basis for evaluating BR will be emphasized. Among the topics explored and studied are insurance (Warranties and indemnifications), corporate finance and integrating risk management, managing the tension between risk and innovation, and investing in the business.",
     program: "bsba", category: "core",
     slos: [
       { id: "MGT_441_SLO1", number: 1, text: "Identify and categorize the major types of business risk." },
@@ -512,6 +532,7 @@ const COURSE_SLOS = {
   },
   "MGT489": {
     code: "MGT 489", title: "Business Administration Capstone", credits: 3,
+    description: "This course is designed to help students consolidate the key principles of general education (including biblical worldview), biblical knowledge, and business administration by synthesizing the relationships between significant concepts and student experience. Students will prepare a paper, answering questions that integrate and synthesize key business principles of biblical worldview, spiritual transformation, communication of truth, leadership, and ministry principles. This course is taught individually with each student focusing on their interests, experiences, and goals and is Pass/Fail.",
     program: "bsba", category: "core",
     slos: [
       { id: "MGT_489_SLO1", number: 1, text: "Synthesize key concepts from general education, biblical studies, and business into an integrated paper." },
@@ -523,6 +544,7 @@ const COURSE_SLOS = {
   },
   "OL500": {
     code: "OL 500", title: "Critical Thinking", credits: 3,
+    description: "This course is designed to provide a framework for gathering and evaluating the challenges leaders face globally. The need for distinguishing between fact and fiction; sound principles and external biases while developing solid strategies for addressing local, national and global issues has never been greater. Students will be challenged to assess their basis for analyzing information that comes to them and understand the biases of various sources of information in their analysis. They will develop an organized, systematic approach for critically filtering the bombardment of data coming to them as they lead their respective organizations.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_500_SLO1", number: 1, text: "Evaluate the credibility and bias of multiple information sources using established criteria." },
@@ -534,6 +556,7 @@ const COURSE_SLOS = {
   },
   "OL501": {
     code: "OL 501", title: "Biblical Principles for Global Leadership", credits: 3,
+    description: "This course is an examination and analysis of the qualities and practices of the effective Christian leader, particularly across cultural boundaries. This study will be based on principles in Scripture and related literature, with attention to devising a personal philosophy of intercultural leadership.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_501_SLO1", number: 1, text: "Analyze biblical texts addressing leadership across cultural boundaries." },
@@ -545,6 +568,7 @@ const COURSE_SLOS = {
   },
   "OL510": {
     code: "OL 510", title: "Ethical Leadership in Public Life", credits: 3,
+    description: "This course is a survey of the development of ethical thought, both ancient and modern. Various ethical systems and their proponents, including alternative Christian perspectives, will be covered along with a discussion of contemporary ethical problems.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_510_SLO1", number: 1, text: "Trace the historical development of ethical thought from ancient to modern systems." },
@@ -556,6 +580,7 @@ const COURSE_SLOS = {
   },
   "OL530": {
     code: "OL 530", title: "Organizational Culture", credits: 3,
+    description: "This course builds critical skills and competencies that enable leaders to achieve the mission and vision of their organizations and is designed to help leaders understand why organizational culture matters and how to create, discover, and transform their organizational culture. Topics include interpersonal group behavior, complex organizational behavior, leadership styles, the contribution of communications, and the integrative role of management in organizations.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_530_SLO1", number: 1, text: "Define organizational culture using at least two established theoretical models." },
@@ -567,6 +592,7 @@ const COURSE_SLOS = {
   },
   "OL540": {
     code: "OL 540", title: "Leading Through Change", credits: 3,
+    description: "This course is an examination of change and its relationship to conflict within an organization. This course will focus on enabling leaders to understand, anticipate, and direct change as well as how to handle criticism in their organizations.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_540_SLO1", number: 1, text: "Analyze the drivers and stages of organizational change using established models." },
@@ -578,6 +604,7 @@ const COURSE_SLOS = {
   },
   "OL550": {
     code: "OL 550", title: "Leading in a National Context", credits: 3,
+    description: "This course is a special seminar that will consider the opportunities and challenges of leading at the national government and corporate levels. Leaders from these contexts will predominate the course as guest speakers. The course examines aspects of managing a national business or ministry, with particular focus on ethical dilemmas, legal and political considerations, and competitive market forces.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_550_SLO1", number: 1, text: "Analyze ethical dilemmas and competitive forces facing national-scale organizations." },
@@ -589,6 +616,7 @@ const COURSE_SLOS = {
   },
   "OL560": {
     code: "OL 560", title: "Organizational Communication and Conflict Management", credits: 3,
+    description: "This course develops the leader's ability to create and effectively communicate a strategic vision within an organization and understand an individual's impact on others. Students learn to identify and improve self-awareness of communication styles and abilities, and to engage, influence, and motivate employees. Topics will include creating a unified organizational climate and culture, managing conflict, understanding team dynamics, and building strong and enduring teams.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_560_SLO1", number: 1, text: "Assess personal communication style and its impact on team dynamics." },
@@ -600,6 +628,7 @@ const COURSE_SLOS = {
   },
   "OL565": {
     code: "OL 565", title: "Business Risk Management", credits: 3,
+    description: "This course is designed to explore the various risks that businesses face on a daily basis. Dealing with BR from a biblical basis can be challenging for those who don't have a solid foundation; hence the biblical basis for evaluating BR will be emphasized. Among the topics explored and studied are insurance (warranties and indemnifications), corporate finance and integrating risk management, managing the tension between risk and innovation, and investing in the business.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_565_SLO1", number: 1, text: "Identify and categorize the major risk domains facing contemporary organizations." },
@@ -611,6 +640,7 @@ const COURSE_SLOS = {
   },
   "OL570": {
     code: "OL 570", title: "Financial Statement Analysis", credits: 3,
+    description: "\"Finance is the language of business, the lifeblood of the economy, and an increasingly dominant force in capitalism.\" Mihir A. Desai, Mizuho Financial Group Professor, Harvard Business School. Good decision making, especially in complex matters, require business leaders to review, analyze, and understand both qualitative and quantitative impacts on an organization. This course will equip the student with tools to understand, analyze, and interpret company financial data and the related implications for the organization. Key topics for the course include financial statement analysis, operational analysis, budgeting, forecasting, capital structures, and investment analysis.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_570_SLO1", number: 1, text: "Interpret the three primary financial statements and explain their interrelationships." },
@@ -622,6 +652,7 @@ const COURSE_SLOS = {
   },
   "OL575": {
     code: "OL 575", title: "Strategic Planning", credits: 3,
+    description: "\"Strategy is about setting yourself apart from the competition. It's not a matter of being better at what you do \u2013 it's a matter of being different at what you do.\" Michael Porter, Bishop William Lawrence University Professor at Harvard Business School. This course will equip the student with the core concepts, analytical tools, and language, essential to crafting, implementing, and executing business strategies in today's competitive business environment. The curriculum provides a blend of well-settled management principles in business strategy with recent research findings and contributions to the scholarly literature on the topic. Class discussions will revolve around the case studies of real-world companies led by active practitioners in the field.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_575_SLO1", number: 1, text: "Analyze competitive position using established strategic frameworks." },
@@ -633,6 +664,7 @@ const COURSE_SLOS = {
   },
   "OL590": {
     code: "OL 590", title: "Dynamics of Leading in an International Context", credits: 3,
+    description: "This course is a special seminar that will consider the opportunities and challenges of leading at international government and corporate levels. Leaders from these levels will predominate the course as guest speakers. The course examines strategic aspects of managing a global or multinational business or ministry, with particular focus on cultural dynamics, legal and political considerations, and competitive market forces. International location TBD.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_590_SLO1", number: 1, text: "Analyze cultural, legal, and political dynamics shaping international leadership." },
@@ -644,6 +676,7 @@ const COURSE_SLOS = {
   },
   "OL599": {
     code: "OL 599", title: "Capstone Project", credits: 3,
+    description: "This is a leadership project, selected by the student, which will pertain to a particular opportunity or problem in their organization or ministry. The purpose of the Capstone is to help the student apply the elements of organizational leadership which the student acquired in the program. The development of this project will be conducted throughout the program and will be guided by a professor in the program.",
     program: "maol", category: "core",
     slos: [
       { id: "OL_599_SLO1", number: 1, text: "Identify and define a significant organizational opportunity or problem." },
@@ -655,6 +688,7 @@ const COURSE_SLOS = {
   },
   "ACCT302": {
     code: "ACCT 302", title: "Principles of Accounting II", credits: 3,
+    description: "This is the second course of Accounting. The student continues learning processes related to payroll, accruals, and deferrals, closing procedures and preparation of the basic financial statements. The student will learn accounting theory and standards relating to receivables, payables, inventory, and property, plant, and equipment.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_302_SLO1", number: 1, text: "Process payroll transactions including gross pay, withholdings, and employer taxes." },
@@ -666,6 +700,7 @@ const COURSE_SLOS = {
   },
   "ACCT303": {
     code: "ACCT 303", title: "Principles of Accounting III", credits: 3,
+    description: "This is the third Principles of Accounting course. The student will focus on accounting for partnerships and corporations, equity, and bonds. The student will learn how to analyze the financial statements and prepare the statement of cash flows.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_303_SLO1", number: 1, text: "Account for partnership formation, income allocation, and dissolution." },
@@ -677,6 +712,7 @@ const COURSE_SLOS = {
   },
   "ACCT311313": {
     code: "ACCT 311/313", title: "Accounting for Managers / Nonprofit Financial Mgmt", credits: 3,
+    description: "An overview of accounting from the perspective of a non-accounting manager in order to provide that manager with the tools to understand the essentials of how finance functions within the organization including internal controls, the function of accounting and the difference between historical accounting data and financial planning.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_311_313_SLO1", number: 1, text: "Interpret financial statements from a managerial perspective." },
@@ -688,6 +724,7 @@ const COURSE_SLOS = {
   },
   "ACCT321": {
     code: "ACCT 321", title: "Intermediate Accounting I", credits: 3,
+    description: "An in-depth financial accounting course, this class will focus on theory and further development of GAAP (Generally Accepted Accounting Principles). Topics will include the time management of money, statement of cash flows, the balance sheet, stockholders' equity, income statement, and earnings per share.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_321_SLO1", number: 1, text: "Apply GAAP to complex transactions involving receivables, inventory, and long-lived assets." },
@@ -699,6 +736,7 @@ const COURSE_SLOS = {
   },
   "ACCT322": {
     code: "ACCT 322", title: "Intermediate Accounting II", credits: 3,
+    description: "An in-depth financial accounting course, this class will focus on theory and further development of GAAP (Generally Accepted Accounting Principles). Topics will include the time management of money, statement of cash flows, the balance sheet, stockholders' equity, income statement, and earnings per share.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_322_SLO1", number: 1, text: "Account for stockholders’ equity including stock options and comprehensive income." },
@@ -710,6 +748,7 @@ const COURSE_SLOS = {
   },
   "ACCT323": {
     code: "ACCT 323", title: "Cost Accounting", credits: 3,
+    description: "An in-depth study of cost accounting including internal reporting and cost allocation. This course explores the accounting functions related to business such as machinery, materials, labor, and overhead; cost allocation, variable costing, and production processes will be discussed.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_323_SLO1", number: 1, text: "Calculate product costs using job-order and process costing systems." },
@@ -721,6 +760,7 @@ const COURSE_SLOS = {
   },
   "ACCT331": {
     code: "ACCT 331", title: "Accounting with QuickBooks Online", credits: 3,
+    description: "The student will learn the QuickBooks Online software platform.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_331_SLO1", number: 1, text: "Set up a company file in QuickBooks including chart of accounts." },
@@ -732,6 +772,7 @@ const COURSE_SLOS = {
   },
   "ACCT332": {
     code: "ACCT 332", title: "Payroll Accounting", credits: 3,
+    description: "The student will learn the payroll processes: how to compute the payroll, payroll taxes and accounting systems used in the payroll function.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_332_SLO1", number: 1, text: "Compute gross pay, withholdings, and net pay under various structures." },
@@ -743,6 +784,7 @@ const COURSE_SLOS = {
   },
   "ACCT333": {
     code: "ACCT 333", title: "State Tax Issues", credits: 3,
+    description: "This course prepares accounting students and entrepreneurs for doing business in Tennessee. Topics covered include opening a business in Tennessee, state tax compliance in Tennessee and non-for-profit compliance in Tennessee.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_333_SLO1", number: 1, text: "Identify requirements for opening and registering a business in Tennessee." },
@@ -754,6 +796,7 @@ const COURSE_SLOS = {
   },
   "ACCT341": {
     code: "ACCT 341", title: "Individual Tax", credits: 3,
+    description: "This is an introductory course to federal taxation as it primarily relates to the individual. Topics include tax strategies for individuals and sole proprietors.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_341_SLO1", number: 1, text: "Determine filing status, exemptions, and gross income for federal returns." },
@@ -765,6 +808,7 @@ const COURSE_SLOS = {
   },
   "ACCT342": {
     code: "ACCT 342", title: "Business Tax", credits: 3,
+    description: "This is the second course to federal taxation as it primarily relates to partnerships and corporations. Topics include tax requirements for formations, dispositions, and distributions in business entities.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_342_SLO1", number: 1, text: "Explain federal tax treatment of partnership formation and distributions." },
@@ -776,6 +820,7 @@ const COURSE_SLOS = {
   },
   "ACCT343": {
     code: "ACCT 343", title: "Managerial Accounting", credits: 3,
+    description: "An emphasis on accounting systems that relate to internal reporting and decision making. Topics include cost allocation, capital budgeting, and control measures.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_343_SLO1", number: 1, text: "Prepare internal management reports for operational and strategic decisions." },
@@ -787,6 +832,7 @@ const COURSE_SLOS = {
   },
   "ACCT401": {
     code: "ACCT 401", title: "Auditing", credits: 3,
+    description: "This class focuses on the sampling and review process of the income statement, balance sheet, and related statements of for- and nonprofit organizations. This is also a class in which ethical standards will be emphasized.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_401_SLO1", number: 1, text: "Explain the objectives, standards, and process of a financial statement audit." },
@@ -798,6 +844,7 @@ const COURSE_SLOS = {
   },
   "ACCT403": {
     code: "ACCT 403", title: "Government and Nonprofit Accounting", credits: 3,
+    description: "This course covers the specifics of accounting in these distinct entities. The principles of public finance and concepts of government auditing will be considered. Other topics discussed include Government Accounting Standards Board rules, non-profit recording of revenues, expenses and assets, and the role, and how to use budgetary systems in these organizations for financial planning.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_403_SLO1", number: 1, text: "Explain differences between governmental, nonprofit, and for-profit accounting." },
@@ -809,6 +856,7 @@ const COURSE_SLOS = {
   },
   "ACCT423": {
     code: "ACCT 423", title: "Forensic Accounting", credits: 3,
+    description: "An introductory course on forensic accounting, with an emphasis on financial statement fraud. Students will understand how to identify various types of fraud such as fraudulent accounting schemes, and computer fraud, as well as methods for uncovering fraud.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_423_SLO1", number: 1, text: "Identify and classify major types of financial statement and occupational fraud." },
@@ -820,6 +868,7 @@ const COURSE_SLOS = {
   },
   "ACCT489": {
     code: "ACCT 489", title: "Accounting Capstone", credits: 3,
+    description: "The capstone project is the culmination of all the courses in the accounting minor, and provides students with an opportunity to exhibit a mastery of accounting practices and principles. This course is an overview of the four main areas of the exam including: Auditing and Attestation, Financial Accounting and Reporting, Regulation, and Business Environment and Concepts. In addition, students will receive a review of basic rules and regulations of accounting such as accepted auditing and accounting standards, the Uniform Commercial Code, and the Internal Revenue Code since the CPA exam requires an understanding of the application of each.",
     program: "bsba", category: "accounting_minor",
     slos: [
       { id: "ACCT_489_SLO1", number: 1, text: "Demonstrate mastery across the four CPA exam domains." },
@@ -831,6 +880,7 @@ const COURSE_SLOS = {
   },
   "MGT302": {
     code: "MGT 302", title: "Essentials of Nonprofit Management", credits: 3,
+    description: "A study of the five parts of managing organizations\u2014planning, organizing, staffing, leading and controlling/evaluation\u2014with the study of principles for application to both not-for-profit and for-profit organizations with references to Scripture.",
     program: "bsba", category: "elective",
     slos: [
       { id: "MGT_302_SLO1", number: 1, text: "Apply the five management functions to nonprofit organizational scenarios." },
@@ -842,6 +892,7 @@ const COURSE_SLOS = {
   },
   "BUS421": {
     code: "BUS 421", title: "Fundamentals of Funds Development I", credits: 3,
+    description: "The introduction to concepts in the development of friends and funds to support the mission and vision of the nonprofit organization. This class will consider the annual fund, major gifts, special events, and donor data development and tracking.",
     program: "bsba", category: "nonprofit_minor",
     slos: [
       { id: "BUS_421_SLO1", number: 1, text: "Explain principles of donor cultivation, solicitation, and stewardship." },
@@ -853,6 +904,7 @@ const COURSE_SLOS = {
   },
   "BUS422": {
     code: "BUS 422", title: "Fundamentals of Funds Development II", credits: 3,
+    description: "A continuation in the study of concepts related to the development of friends and funds in the nonprofit organization. This class will focus on grant writing, capital campaign design and implementation and planned giving.",
     program: "bsba", category: "nonprofit_minor",
     slos: [
       { id: "BUS_422_SLO1", number: 1, text: "Write a complete grant proposal with needs statement, design, and budget." },
@@ -864,6 +916,7 @@ const COURSE_SLOS = {
   },
   "BUS431": {
     code: "BUS 431", title: "Strategic Communications in Nonprofit Organizations", credits: 3,
+    description: "An overview of various communication requirements, styles and medium that are critical in the development of a shared vision among stakeholders of the nonprofit organization.",
     program: "bsba", category: "nonprofit_minor",
     slos: [
       { id: "BUS_431_SLO1", number: 1, text: "Develop a communications plan aligned with nonprofit mission and stakeholders." },
@@ -875,6 +928,7 @@ const COURSE_SLOS = {
   },
   "BUS441": {
     code: "BUS 441", title: "Strategic Planning for Nonprofit Organizations", credits: 3,
+    description: "This course addresses the components of vision: Mission, Values, Goals and Strategies. Further, it focuses on the implementation and execution of strategies as it relates to human and financial capital.",
     program: "bsba", category: "nonprofit_minor",
     slos: [
       { id: "BUS_441_SLO1", number: 1, text: "Develop a strategic plan for a nonprofit including mission, values, and goals." },
@@ -886,6 +940,7 @@ const COURSE_SLOS = {
   },
   "BUS489": {
     code: "BUS 489", title: "Nonprofit Managerial Leadership Capstone", credits: 3,
+    description: "A comprehensive review of a student's entire WC career from an interdisciplinary approach. Students should be prepared to give account of all course material and concepts as it relates to their focus of study in Nonprofit Managerial Leadership. Pass/Fail",
     program: "bsba", category: "nonprofit_minor",
     slos: [
       { id: "BUS_489_SLO1", number: 1, text: "Synthesize knowledge from nonprofit management, fundraising, and leadership." },
@@ -897,6 +952,7 @@ const COURSE_SLOS = {
   },
   "MGT411": {
     code: "MGT 411", title: "Teams and the Work Process", credits: 3,
+    description: "The organization of work in the implementation of the strategic plan with work analyzed for how human efforts in teams of various compositions can effectively bring that work to a quality level of completion as defined by the end-user.",
     program: "bsba", category: "elective",
     slos: [
       { id: "MGT_411_SLO1", number: 1, text: "Analyze how team composition and process affect work output quality." },
@@ -908,6 +964,7 @@ const COURSE_SLOS = {
   },
   "MGT431": {
     code: "MGT 431", title: "Ethical Decisions in the Workplace", credits: 3,
+    description: "This course will focus on ethical issues and concepts in the workplace. Specific attention will be given to challenges surrounding ethical decisions with and without a presupposition of a transcendent reality (ultimate truth in God). Biblical concepts for ethical living will undergird the analysis and discussion. This course also includes reading, discussion and development of papers pertaining to relevant case studies and readings involving ethical issues applied to actual situations.",
     program: "bsba", category: "elective",
     slos: [
       { id: "MGT_431_SLO1", number: 1, text: "Analyze workplace ethical dilemmas using biblical and secular frameworks." },
@@ -919,6 +976,7 @@ const COURSE_SLOS = {
   },
   "MGT437": {
     code: "MGT 437", title: "Management of Human Resources", credits: 3,
+    description: "A study of an organization's effort to find, motivate, and retain effective people who demonstrate a commitment to being part of a team which accomplishes the organizational mission.",
     program: "bsba", category: "elective",
     slos: [
       { id: "MGT_437_SLO1", number: 1, text: "Explain the HR management cycle from recruitment through separation." },
@@ -930,6 +988,7 @@ const COURSE_SLOS = {
   },
   "BUS311": {
     code: "BUS 311", title: "Introduction to Statistical Reasoning", credits: 3,
+    description: "This introduction study will help the student develop their statistical reasoning with the specific interest of non-profit management. This course will demonstrate the power, eloquence and even beauty of statistical reason and discuss not only the uses but also the abuses of statistics.",
     program: "bsba", category: "elective",
     slos: [
       { id: "BUS_311_SLO1", number: 1, text: "Interpret descriptive statistics and explain their application to business data." },
@@ -941,6 +1000,7 @@ const COURSE_SLOS = {
   },
   "BUS401": {
     code: "BUS 401", title: "Internship", credits: 3,
+    description: "Students are required to complete 200 hours of internship with one or more of Williamson College non-profit partners or any other organization approved by Williamson College.",
     program: "bsba", category: "nonprofit_minor",
     slos: [
       { id: "BUS_401_SLO1", number: 1, text: "Complete 200 hours of supervised professional experience." },
@@ -952,6 +1012,7 @@ const COURSE_SLOS = {
   },
   "CHAR101": {
     code: "CHAR 101", title: "Application of a Character-Based Mindset to Vocation", credits: 3,
+    description: "Tomorrow's entrepreneurial leaders must be grounded in their identity as a Christian. From this identity, Character can be applied to fulfill the desire to create idea-driven organizations that change the Character of the world. This class lays the foundation for a successful entrepreneur by understanding the importance of Character and using a set of Life Filters for issues facing the entrepreneur. These life filters will allow individuals to become the entrepreneur God created them to be.",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_101_SLO1", number: 1, text: "Articulate how Christian identity provides the foundation for entrepreneurial purpose." },
@@ -963,6 +1024,7 @@ const COURSE_SLOS = {
   },
   "CHAR210": {
     code: "CHAR 210", title: "Introduction to Entrepreneurship", credits: 3,
+    description: "This class will give you a basic overview of the different types of entrepreneurs, how they think, and the characteristics that help make them successful.",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_210_SLO1", number: 1, text: "Identify and compare major types of entrepreneurs and their characteristics." },
@@ -974,6 +1036,7 @@ const COURSE_SLOS = {
   },
   "CHAR120": {
     code: "CHAR 120", title: "Entrepreneurship is a Team Sport", credits: 3,
+    description: "This class gives an overview of how to create a positive culture of Character for your organization. This class will provide two different human capital tools to help accelerate the success of an idea: a culture of innovation and momentum. An entrepreneur's greatest asset is human capital. Hiring the right person for the proper role is essential for achieving teamwork.",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_120_SLO1", number: 1, text: "Explain why human capital is the most valuable entrepreneurial asset." },
@@ -985,6 +1048,7 @@ const COURSE_SLOS = {
   },
   "CHAR130": {
     code: "CHAR 130", title: "Character-Based Leadership", credits: 3,
+    description: "With identity-based in Christ, you will learn how to apply character-based life filters into a leadership style. It is a style of leading from the bottom up, where the interests of everyone in the organization are placed self. This leadership style is also of great value in engaging others outside your organization and your relationships. Character-based leadership is not something a person can turn off and on based on different situations. Rather, it is an evaluation of how to apply the character-based life filters to lead an entrepreneurial, idea-driven organization.",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_130_SLO1", number: 1, text: "Articulate the principles of character-based, bottom-up leadership." },
@@ -996,6 +1060,7 @@ const COURSE_SLOS = {
   },
   "CHAR110": {
     code: "CHAR 110", title: "Storytelling and Persuasion", credits: 3,
+    description: "This class will examine the power of storytelling and the art of Persuasion in moving an idea from inception to a successful conversion.",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_110_SLO1", number: 1, text: "Explain principles of effective storytelling for entrepreneurial communication." },
@@ -1007,6 +1072,7 @@ const COURSE_SLOS = {
   },
   "CHAR220": {
     code: "CHAR 220", title: "Introduction to Innovation", credits: 3,
+    description: "This course will give you an understanding of the steps and processes required to move an idea into a product or service. It involves understanding the innovation process and how it impacts an idea towards success or provides a reason to abandon the idea without losing time or money. The class will give you two different tools to assist in the ideation process.",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_220_SLO1", number: 1, text: "Explain the stages of the innovation process from ideation through implementation." },
@@ -1018,6 +1084,7 @@ const COURSE_SLOS = {
   },
   "CHAR230": {
     code: "CHAR 230", title: "Personal Finance and Capital Formation", credits: 3,
+    description: "This course will provide an overview of how to fund an idea and will prepare you to have intelligent conservations with investors, bankers, and anyone working with you regarding financial operations. Cash flow is the second biggest problem facing entrepreneurs. Understanding and applying finance and accounting principles is an essential foundation for success as an entrepreneur.",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_230_SLO1", number: 1, text: "Explain major capital sources available to entrepreneurs." },
@@ -1029,6 +1096,7 @@ const COURSE_SLOS = {
   },
   "CHAR240": {
     code: "CHAR 240", title: "Business Law and Corporate Formation", credits: 3,
+    description: "This course will prepare the entrepreneur for the fundamental legal issues in any idea formation. Many key issues affecting the long-term success and viability of the idea happen early in the process. There are three key focuses of this course: 1) How to protect your idea, 2) What type of company should the entrepreneur form? 3) How does Human Resources law affect business strategy?",
     program: "bsba", category: "character_cert",
     slos: [
       { id: "CHAR_240_SLO1", number: 1, text: "Identify fundamental legal issues facing entrepreneurs in venture formation." },
