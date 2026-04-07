@@ -5860,49 +5860,47 @@ function loadResults() {
 }
 
 function renderResultsStats(responses) {
-  // Use survey responses if available, otherwise show Populi enrollment stats
-  let totalLabel, totalVal, col2Label, col2Val, col3Label, col3Val;
+  // Always show Populi enrollment stats; add survey count if any exist
+  const progId = document.getElementById("resultsProgram").value;
+  let totalEnrollments = 0, courseCount = 0, facultyCount = 0, studentCount = 0;
 
-  if (responses.length > 0) {
-    totalVal = responses.length;
-    totalLabel = "Total Responses";
-    col2Val = new Set(responses.map(r => r.program)).size;
-    col2Label = "Programs";
-    col3Val = new Set(responses.map(r => r.submittedBy)).size;
-    col3Label = "Unique Instructors";
-  } else if (typeof ALL_ENROLLMENTS !== 'undefined') {
-    const progId = document.getElementById("resultsProgram").value;
+  if (typeof ALL_ENROLLMENTS !== 'undefined') {
     let enrollments = ALL_ENROLLMENTS.filter(e => e.finalized);
     if (progId !== 'all' && typeof ALL_STUDENTS !== 'undefined') {
       const ids = new Set(ALL_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(progId)).map(s => s.personId));
       enrollments = enrollments.filter(e => ids.has(e.personId));
     }
-    totalVal = enrollments.length;
-    totalLabel = "Total Enrollments";
-    col2Val = new Set(enrollments.map(e => e.course)).size;
-    col2Label = "Courses";
-    col3Val = new Set(enrollments.filter(e => e.primaryFaculty).map(e => e.primaryFaculty)).size;
-    col3Label = "Faculty";
-  } else {
-    totalVal = 0; totalLabel = "Total Responses";
-    col2Val = 0; col2Label = "Programs";
-    col3Val = 0; col3Label = "Unique Instructors";
+    totalEnrollments = enrollments.length;
+    courseCount = new Set(enrollments.map(e => e.course)).size;
+    facultyCount = new Set(enrollments.filter(e => e.primaryFaculty).map(e => e.primaryFaculty)).size;
+    studentCount = new Set(enrollments.map(e => e.personId)).size;
   }
 
-  const statsHtml = `
+  let statsHtml = `
     <div class="stat-card">
-      <div class="number">${totalVal}</div>
-      <div class="label">${totalLabel}</div>
+      <div class="number">${totalEnrollments.toLocaleString()}</div>
+      <div class="label">Total Enrollments</div>
     </div>
     <div class="stat-card">
-      <div class="number">${col2Val}</div>
-      <div class="label">${col2Label}</div>
+      <div class="number">${studentCount}</div>
+      <div class="label">Students</div>
     </div>
     <div class="stat-card">
-      <div class="number">${col3Val}</div>
-      <div class="label">${col3Label}</div>
+      <div class="number">${courseCount}</div>
+      <div class="label">Courses</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">${facultyCount}</div>
+      <div class="label">Faculty</div>
     </div>
   `;
+  if (responses.length > 0) {
+    statsHtml += `
+    <div class="stat-card">
+      <div class="number">${responses.length}</div>
+      <div class="label">Survey Responses</div>
+    </div>`;
+  }
   document.getElementById("resultsStats").innerHTML = statsHtml;
 }
 
