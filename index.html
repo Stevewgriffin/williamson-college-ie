@@ -58,7 +58,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background
 .tab.active { color: var(--maroon); border-bottom-color: var(--gold); }
 .tab.hidden { display: none; }
 
-.content { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.content { padding: 24px; max-width: 1400px; margin: 0 auto; overflow-y: auto; }
 .panel { display: none; }
 .panel.active { display: block; }
 
@@ -241,7 +241,7 @@ textarea.form-textarea:focus { border-color:var(--gold); }
 .populi-header { font-size: 1.2rem; color: #722F37; margin-bottom: 8px; }
 .populi-description { color: #636e72; font-size: 0.9rem; line-height: 1.5; margin-bottom: 24px; }
 
-.upload-card { background: white; border-radius: 12px; border: 1px solid #dfe6e9; margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.upload-card { background: white; border-radius: 12px; border: 1px solid #dfe6e9; margin-bottom: 16px; overflow: visible; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .upload-card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #f9f9f9; cursor: pointer; user-select: none; font-weight: 600; color: #722F37; border-bottom: 2px solid transparent; transition: all .2s; }
 .upload-card-header:hover { background: #f0f0f0; border-bottom-color: #C5963A; }
 .upload-card-toggle { font-size: 1.2rem; transition: transform .3s; }
