@@ -8379,7 +8379,9 @@ ${text.substring(0, 15000)}`;
                 const jsonMatch = data.content[0].text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                   const parsed = JSON.parse(jsonMatch[0]);
-                  allResults.push({ file: fileName, student: parsed.student_name || extractStudentName(fileName, path), scores: parsed.scores || {}, notes: parsed.notes || '' });
+                  const folderName = extractStudentName(fileName, path);
+                  const studentName = (folderName && folderName !== 'Unknown Student') ? folderName : (parsed.student_name || folderName);
+                  allResults.push({ file: fileName, student: studentName, scores: parsed.scores || {}, notes: parsed.notes || '' });
                 } else {
                   allResults.push({ file: fileName, student: extractStudentName(fileName, path), error: 'Could not parse AI response', scores: {} });
                 }
