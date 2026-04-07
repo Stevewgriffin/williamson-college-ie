@@ -6415,6 +6415,7 @@ function aiDraftGASW(field) {
     headers: {
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
       "content-type": "application/json",
       "anthropic-dangerous-direct-browser-access": "true"
     },
@@ -6645,6 +6646,7 @@ Provide specific observations about enrollment trends, academic performance, and
     headers: {
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
       "content-type": "application/json"
     },
     body: JSON.stringify({
@@ -6675,13 +6677,35 @@ function generateResultsAnalysis() {
   document.getElementById("btnResultsAI").disabled = true;
   document.getElementById("resultsAIOutput").innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>Analyzing results...</span></div>';
 
-  const prompt = `Provide a detailed narrative assessment of the survey results suitable for SACSCOC reporting. Include strengths, areas of concern, and actionable recommendations.`;
+  // Build rich context from Populi data
+  let dataContext = '';
+  if (typeof ALL_STUDENTS !== 'undefined') {
+    const progCounts = {};
+    ALL_STUDENTS.forEach(s => { const d = s.degree || 'Unknown'; progCounts[d] = (progCounts[d]||0)+1; });
+    const gpas = ALL_STUDENTS.map(s => s.cumGPA).filter(g => g > 0);
+    const avgGPA = gpas.length ? (gpas.reduce((a,b)=>a+b,0)/gpas.length).toFixed(2) : 'N/A';
+    dataContext += `\nTotal Students (all-time): ${ALL_STUDENTS.length}\nAvg Cumulative GPA: ${avgGPA}\nStudents by Program: ${JSON.stringify(progCounts)}`;
+  }
+  if (typeof ALL_ENROLLMENTS !== 'undefined') {
+    const graded = ALL_ENROLLMENTS.filter(e => e.letter && e.finalized);
+    const dist = {};
+    graded.forEach(e => { const l = e.letter.charAt(0); dist[l] = (dist[l]||0)+1; });
+    dataContext += `\nTotal Enrollments: ${ALL_ENROLLMENTS.length}\nGrade Distribution: ${JSON.stringify(dist)}`;
+  }
+  if (typeof HISTORICAL_SUMMARY !== 'undefined' && HISTORICAL_SUMMARY.enrollmentTrend) {
+    const last6 = HISTORICAL_SUMMARY.enrollmentTrend.slice(-6);
+    dataContext += `\nRecent Enrollment Trend: ${last6.map(t => t.term + ': ' + t.count).join(', ')}`;
+  }
+
+  const prompt = `You are an institutional effectiveness analyst at Williamson College. Analyze this data and provide a detailed narrative assessment suitable for SACSCOC reporting. Include strengths, areas of concern, and actionable recommendations.
+${dataContext}`;
 
   fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
       "content-type": "application/json"
     },
     body: JSON.stringify({
