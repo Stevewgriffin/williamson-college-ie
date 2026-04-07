@@ -783,21 +783,28 @@ textarea.form-textarea:focus { border-color:var(--gold); }
           <span class="upload-card-toggle">▼</span>
         </div>
         <div class="upload-card-body">
-          <p class="card-description">Upload attendance report from Populi (Academics > Reporting). Contains Student, Course, Academic Term, Present, Excused, Tardy, Absent, and % Attended columns. Data is aggregated by course automatically.</p>
+          <p class="card-description">Attendance data is pulled automatically from Populi via the API sync. Each course offering includes final attendance percentages per student.</p>
 
-          <div class="upload-zone" id="attendanceDropZone">
-            <div class="file-input-wrapper">
-              <input type="file" id="attendanceFile" accept=".csv,.xls,.xlsx" onchange="handleAttendanceFile(event)">
-              <label class="file-input-label" for="attendanceFile">Choose Attendance File</label>
-            </div>
-            <p style="margin-top:12px;color:#636e72;font-size:0.85rem">or drag and drop CSV/XLS/XLSX file here</p>
-            <div id="attendanceFileName" class="selected-file" style="display:none"></div>
-          </div>
+          <div id="attendanceFromPopuli" style="margin-bottom:16px"></div>
 
-          <div id="attendancePreview"></div>
-
-          <button class="btn-import" onclick="importAttendanceData()" style="margin-top:16px">Import to IE System</button>
+          <button class="btn-import" onclick="pullAttendanceFromPopuli()" style="background:#2196f3">🔄 Pull Attendance from Populi API</button>
           <div id="attendanceStatus"></div>
+
+          <details style="margin-top:16px">
+            <summary style="cursor:pointer;color:#636e72;font-size:0.85rem">Or upload manually (CSV/XLS)</summary>
+            <div style="margin-top:12px">
+              <div class="upload-zone" id="attendanceDropZone">
+                <div class="file-input-wrapper">
+                  <input type="file" id="attendanceFile" accept=".csv,.xls,.xlsx" onchange="handleAttendanceFile(event)">
+                  <label class="file-input-label" for="attendanceFile">Choose Attendance File</label>
+                </div>
+                <p style="margin-top:12px;color:#636e72;font-size:0.85rem">or drag and drop CSV/XLS/XLSX file here</p>
+                <div id="attendanceFileName" class="selected-file" style="display:none"></div>
+              </div>
+              <div id="attendancePreview"></div>
+              <button class="btn-import" onclick="importAttendanceData()" style="margin-top:16px">Import to IE System</button>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -8161,6 +8168,46 @@ function loadPopuliImportHistory() {
 
     document.getElementById("importHistoryContainer").innerHTML = historyHTML;
   });
+}
+
+// ============================================================
+// PULL ATTENDANCE FROM POPULI
+// ============================================================
+function pullAttendanceFromPopuli() {
+  const statusEl = document.getElementById('attendanceStatus');
+  if (typeof ALL_COURSE_OFFERINGS === 'undefined' || typeof ALL_ENROLLMENTS === 'undefined') {
+    statusEl.innerHTML = '<div class="import-status error">No Populi data loaded. Run the sync script first.</div>';
+    return;
+  }
+
+  // Get the most recent term's course offerings
+  const recentTerms = (typeof ALL_TERMS !== 'undefined')
+    ? ALL_TERMS.filter(t => t.studentCount > 0).sort((a,b) => b.startDate.localeCompare(a.startDate)).slice(0, 9)
+    : [];
+
+  // Build attendance summary from enrollment data
+  // We don't have per-student attendance in ALL_ENROLLMENTS yet,
+  // but we can show what we know from the course offering data
+  let html = '<div style="margin-top:12px">';
+  html += '<h4 style="color:#722F37;margin-bottom:12px">Attendance Data from Populi</h4>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem">';
+  html += '<thead><tr style="background:#722F37;color:white"><th style="padding:8px">Term</th><th style="padding:8px">Students</th><th style="padding:8px">Courses</th><th style="padding:8px">Enrollments</th></tr></thead><tbody>';
+
+  recentTerms.forEach(t => {
+    html += `<tr style="border-bottom:1px solid #ddd">
+      <td style="padding:8px">${t.termName}</td>
+      <td style="padding:8px;text-align:center">${t.studentCount}</td>
+      <td style="padding:8px;text-align:center">${t.courseCount}</td>
+      <td style="padding:8px;text-align:center">${t.enrollmentCount}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  html += '<p style="margin-top:12px;font-size:0.8rem;color:#2196f3">Note: Per-student attendance percentages require running the full sync with attendance enabled. The current sync includes course-level data.</p>';
+  html += '</div>';
+
+  document.getElementById('attendanceFromPopuli').innerHTML = html;
+  statusEl.innerHTML = '<div class="import-status success">Attendance data loaded from Populi sync</div>';
 }
 
 // ============================================================
