@@ -427,7 +427,7 @@ textarea.form-textarea:focus { border-color:var(--gold); }
       <div class="tab" data-tab="institutional" onclick="switchTab('institutional')">Institutional Data</div>
       <div class="tab" data-tab="gasw" onclick="switchTab('gasw')">GASW / Close the Loop</div>
       <div class="tab" data-tab="faculty-reports" onclick="switchTab('faculty-reports')">Faculty Reports</div>
-      <div class="tab" data-tab="populi" onclick="switchTab('populi')">Populi Import</div>
+      <div class="tab" data-tab="populi" onclick="switchTab('populi')">Populi Data</div>
       <div class="tab" data-tab="reports" onclick="switchTab('reports')">IE Reports</div>
     </div>
   </div>
@@ -653,91 +653,18 @@ textarea.form-textarea:focus { border-color:var(--gold); }
 
     <!-- Populi Import Panel -->
     <div class="panel" id="panel-populi">
-      <h2 style="margin-bottom:24px">Populi Data Import</h2>
+      <h2 style="margin-bottom:24px">Populi Data</h2>
 
+      <!-- Sync Status Card -->
       <div class="card mb-24">
-        <p class="populi-description">Williamson College uses Populi as its LMS/SIS. Export CSV/XLS files from Populi by module and import them here. Data populates institutional metrics, SLO assessments, and the GASW. Only courses and faculty that actually ran in a module are assessed.</p>
-
-        <div class="card">
-          <div class="month-selector">
-            <label style="font-weight:600">Select Module/Term:</label>
-            <select id="populiMonthSelector">
-              <option value="">-- Select Module --</option>
-            </select>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <span style="font-size:1.5rem">🔗</span>
+          <div>
+            <h3 style="color:#722F37;margin:0">Connected to Populi API</h3>
+            <p style="color:#636e72;font-size:0.85rem;margin:4px 0 0 0">Data synced automatically from wc.populiweb.com</p>
           </div>
         </div>
-      </div>
-
-      <!-- Students Roster Card -->
-      <div class="upload-card">
-        <div class="upload-card-header" onclick="toggleUploadCard(this)">
-          <span>① Student Roster (Recommended First)</span>
-          <span class="upload-card-toggle">▼</span>
-        </div>
-        <div class="upload-card-body">
-          <p class="card-description">Upload the Students export from Populi (People > Students > Export). This maps each Student ID to their actual degree program (BSBA, BSML, ADL, etc.) so enrollment data is categorized correctly. Contains: Student ID, First Name, Last Name, Standing, Program, Degree, GPA, Credits.</p>
-          <div class="upload-zone" id="studentsDropZone">
-            <div class="file-input-wrapper">
-              <input type="file" id="studentsFile" accept=".csv,.xls,.xlsx" onchange="handleStudentsFile(event)">
-              <label class="file-input-label" for="studentsFile">Choose Students File</label>
-            </div>
-            <p style="margin-top:12px;color:#636e72;font-size:0.85rem">or drag and drop CSV/XLS/XLSX file here</p>
-            <div id="studentsFileName" class="selected-file" style="display:none"></div>
-          </div>
-          <div id="studentsPreview"></div>
-          <div id="studentsStatus"></div>
-        </div>
-      </div>
-
-      <!-- Enrollment Report Card -->
-      <div class="upload-card">
-        <div class="upload-card-header" onclick="toggleUploadCard(this)">
-          <span>② Enrollment Report (from Populi Academics > Reporting > Enrollment)</span>
-          <span class="upload-card-toggle">▼</span>
-        </div>
-        <div class="upload-card-body">
-          <p class="card-description">Upload the Enrollment export from Populi (Academics > Reporting > Enrollments > Export). Contains Student ID, Name, Program, Academic Term, Course, Status, Delivery Method, Grade (numeric), Letter grade, Term GPA, Department, and Faculty. Courses are automatically mapped to your 8 programs. Columns typically include: Student, Student ID, Program, Course, Section, Faculty, Status, Final Grade, Term, Credits.</p>
-
-          <div class="upload-zone" id="enrollmentDropZone">
-            <div class="file-input-wrapper">
-              <input type="file" id="enrollmentFile" accept=".csv,.xls,.xlsx" onchange="handleEnrollmentFile(event)">
-              <label class="file-input-label" for="enrollmentFile">Choose Enrollment File</label>
-            </div>
-            <p style="margin-top:12px;color:#636e72;font-size:0.85rem">or drag and drop CSV/XLS/XLSX file here</p>
-            <div id="enrollmentFileName" class="selected-file" style="display:none"></div>
-          </div>
-
-          <div id="enrollmentPreview"></div>
-
-          <button class="btn-import" onclick="importEnrollmentData()" style="margin-top:16px">Import to IE System</button>
-          <div id="enrollmentStatus"></div>
-        </div>
-      </div>
-
-      <!-- Gradebook / SLO Rubric Card -->
-      <div class="upload-card">
-        <div class="upload-card-header" onclick="toggleUploadCard(this)">
-          <span>Gradebook / SLO Rubric Data</span>
-          <span class="upload-card-toggle">▼</span>
-        </div>
-        <div class="upload-card-body">
-          <p class="card-description">Upload gradebook export with rubric scores from Populi. SLO rubric criteria will be mapped to program SLOs automatically. Columns typically include: Student, Course, Assignment, Rubric Criterion, Score, Max Score.</p>
-
-          <div class="upload-zone" id="gradebookDropZone">
-            <div class="file-input-wrapper">
-              <input type="file" id="gradebookFile" accept=".csv,.xls,.xlsx" onchange="handleGradebookFile(event)">
-              <label class="file-input-label" for="gradebookFile">Choose Gradebook File</label>
-            </div>
-            <p style="margin-top:12px;color:#636e72;font-size:0.85rem">or drag and drop CSV/XLS/XLSX file here</p>
-            <div id="gradebookFileName" class="selected-file" style="display:none"></div>
-          </div>
-
-          <div id="gradebookMappingHelper"></div>
-          <div id="gradebookPreview"></div>
-
-          <button class="btn-import" onclick="importGradebookData()" style="margin-top:16px">Import to IE System</button>
-          <div id="gradebookStatus"></div>
-        </div>
+        <div id="populiSyncSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px"></div>
       </div>
 
       <!-- SLO Assessment Document Upload -->
@@ -776,37 +703,6 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         </div>
       </div>
 
-      <!-- Attendance & Completion Card -->
-      <div class="upload-card">
-        <div class="upload-card-header" onclick="toggleUploadCard(this)">
-          <span>Attendance & Completion Report</span>
-          <span class="upload-card-toggle">▼</span>
-        </div>
-        <div class="upload-card-body">
-          <p class="card-description">Attendance data is pulled automatically from Populi via the API sync. Each course offering includes final attendance percentages per student.</p>
-
-          <div id="attendanceFromPopuli" style="margin-bottom:16px"></div>
-
-          <button class="btn-import" onclick="pullAttendanceFromPopuli()" style="background:#2196f3">🔄 Pull Attendance from Populi API</button>
-          <div id="attendanceStatus"></div>
-
-          <details style="margin-top:16px">
-            <summary style="cursor:pointer;color:#636e72;font-size:0.85rem">Or upload manually (CSV/XLS)</summary>
-            <div style="margin-top:12px">
-              <div class="upload-zone" id="attendanceDropZone">
-                <div class="file-input-wrapper">
-                  <input type="file" id="attendanceFile" accept=".csv,.xls,.xlsx" onchange="handleAttendanceFile(event)">
-                  <label class="file-input-label" for="attendanceFile">Choose Attendance File</label>
-                </div>
-                <p style="margin-top:12px;color:#636e72;font-size:0.85rem">or drag and drop CSV/XLS/XLSX file here</p>
-                <div id="attendanceFileName" class="selected-file" style="display:none"></div>
-              </div>
-              <div id="attendancePreview"></div>
-              <button class="btn-import" onclick="importAttendanceData()" style="margin-top:16px">Import to IE System</button>
-            </div>
-          </details>
-        </div>
-      </div>
 
       <!-- Import History -->
       <div class="import-history">
@@ -8171,7 +8067,38 @@ function loadPopuliImportHistory() {
 }
 
 // ============================================================
-// PULL ATTENDANCE FROM POPULI
+// POPULI SYNC SUMMARY
+// ============================================================
+function renderPopuliSyncSummary() {
+  const container = document.getElementById('populiSyncSummary');
+  if (!container) return;
+
+  const students = (typeof ALL_STUDENTS !== 'undefined') ? ALL_STUDENTS.length : 0;
+  const enrollments = (typeof ALL_ENROLLMENTS !== 'undefined') ? ALL_ENROLLMENTS.length : 0;
+  const courses = (typeof ALL_COURSE_OFFERINGS !== 'undefined') ? ALL_COURSE_OFFERINGS.length : 0;
+  const terms = (typeof ALL_TERMS !== 'undefined') ? ALL_TERMS.length : 0;
+  const assignments = (typeof ASSIGNMENT_DATA !== 'undefined') ? ASSIGNMENT_DATA.length : 0;
+
+  const cards = [
+    { label: 'Students', value: students, icon: '👤' },
+    { label: 'Enrollments', value: enrollments.toLocaleString(), icon: '📋' },
+    { label: 'Course Offerings', value: courses, icon: '📚' },
+    { label: 'Modules Synced', value: terms, icon: '📅' },
+    { label: 'Assignments', value: assignments.toLocaleString(), icon: '📝' },
+    { label: 'Programs', value: PROGRAMS ? PROGRAMS.length : 0, icon: '🎓' },
+  ];
+
+  container.innerHTML = cards.map(c => `
+    <div style="text-align:center;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e0e0e0">
+      <div style="font-size:1.5rem">${c.icon}</div>
+      <div style="font-size:1.4rem;font-weight:700;color:#722F37">${c.value}</div>
+      <div style="font-size:0.8rem;color:#636e72">${c.label}</div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// PULL ATTENDANCE FROM POPULI (legacy)
 // ============================================================
 function pullAttendanceFromPopuli() {
   const statusEl = document.getElementById('attendanceStatus');
@@ -8725,6 +8652,7 @@ document.addEventListener("DOMContentLoaded", function() {
   setupDragDrop("attendanceDropZone", "attendanceFile", "attendance");
   setupDragDrop("sloDropZone", "sloFiles", "slo");
   initSLOUpload();
+  renderPopuliSyncSummary();
 
   const enrollBtn = document.querySelector("button[onclick=\"importEnrollmentData()\"]");
   if (enrollBtn) {
