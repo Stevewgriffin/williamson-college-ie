@@ -6110,10 +6110,12 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
     html += `<div style="margin-left:12px;font-size:0.85rem">• ${course}: ${count}</div>`;
   });
 
-  html += `<div style="margin-top:10px"><strong>SLO Score Averages:</strong></div>`;
+  const hasAnySLOData = Object.values(sloScores).some(v => v > 0);
+  const sloSource = surveyResponses.length > 0 ? 'Survey' : (hasAnySLOData ? 'Populi Course Grades' : '');
+  html += `<div style="margin-top:10px"><strong>SLO Score Averages${sloSource ? ` <span style="font-size:0.75rem;color:#2196f3">(${sloSource})</span>` : ''}:</strong></div>`;
   Object.entries(sloScores).forEach(([sloId, score]) => {
     const slo = prog.slos.find(s => s.id === sloId);
-    const status = score < 3.5 ? '⚠️' : '✓';
+    const status = score === 0 ? '—' : (score < 3.5 ? '⚠️' : '✓');
     html += `<div style="margin-left:12px;font-size:0.85rem">${status} ${slo ? slo.id : sloId}: ${score.toFixed(2)}</div>`;
   });
 
@@ -6276,6 +6278,7 @@ function calculateSLOScores(responses, prog) {
     sloScores[slo.id] = [];
   });
 
+  // Try survey responses first
   responses.forEach(response => {
     if (response.sloScores) {
       Object.keys(response.sloScores).forEach(sloId => {
@@ -6285,6 +6288,48 @@ function calculateSLOScores(responses, prog) {
       });
     }
   });
+
+  // Populi fallback: compute SLO achievement from course grades
+  // Each PLO maps to specific courses via ASSESSMENT_INSTRUMENTS
+  // A student's grade in that course (as %) becomes their SLO score on a 4.0 scale
+  const hasSurveyData = Object.values(sloScores).some(arr => arr.length > 0);
+  if (!hasSurveyData && typeof ALL_ENROLLMENTS !== 'undefined' && typeof ASSESSMENT_INSTRUMENTS !== 'undefined') {
+    const progKey = prog.id.toLowerCase();
+    const instruments = ASSESSMENT_INSTRUMENTS[progKey];
+    if (instruments) {
+      Object.keys(instruments).forEach(sloId => {
+        const sloInstr = instruments[sloId];
+        if (!sloInstr || !sloInstr.courses) return;
+
+        // Find all enrollments in the mapped courses
+        sloInstr.courses.forEach(courseCode => {
+          const courseEnrollments = ALL_ENROLLMENTS.filter(e =>
+            e.course === courseCode && e.finalized && e.grade > 0
+          );
+          courseEnrollments.forEach(e => {
+            // Convert percentage grade to 4.0 scale
+            // A (90-100) = 4.0, B (80-89) = 3.0, C (70-79) = 2.0, D (60-69) = 1.0, F (<60) = 0
+            let gpa4;
+            if (e.grade >= 93) gpa4 = 4.0;
+            else if (e.grade >= 90) gpa4 = 3.7;
+            else if (e.grade >= 87) gpa4 = 3.3;
+            else if (e.grade >= 83) gpa4 = 3.0;
+            else if (e.grade >= 80) gpa4 = 2.7;
+            else if (e.grade >= 77) gpa4 = 2.3;
+            else if (e.grade >= 73) gpa4 = 2.0;
+            else if (e.grade >= 70) gpa4 = 1.7;
+            else if (e.grade >= 67) gpa4 = 1.3;
+            else if (e.grade >= 60) gpa4 = 1.0;
+            else gpa4 = 0;
+
+            if (sloScores[sloId]) {
+              sloScores[sloId].push(gpa4);
+            }
+          });
+        });
+      });
+    }
+  }
 
   const sloAvgs = {};
   Object.keys(sloScores).forEach(sloId => {
