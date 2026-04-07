@@ -5860,38 +5860,50 @@ function loadResults() {
 }
 
 function renderResultsStats(responses) {
-  // Always show Populi enrollment stats; add survey count if any exist
+  // Show current-term stats from Populi (what's actionable now)
   const progId = document.getElementById("resultsProgram").value;
-  let totalEnrollments = 0, courseCount = 0, facultyCount = 0, studentCount = 0;
+  let currentStudents = 0, currentCourses = 0, avgGPA = 0, passRate = 0;
 
-  if (typeof ALL_ENROLLMENTS !== 'undefined') {
-    let enrollments = ALL_ENROLLMENTS.filter(e => e.finalized);
-    if (progId !== 'all' && typeof ALL_STUDENTS !== 'undefined') {
-      const ids = new Set(ALL_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(progId)).map(s => s.personId));
-      enrollments = enrollments.filter(e => ids.has(e.personId));
-    }
-    totalEnrollments = enrollments.length;
-    courseCount = new Set(enrollments.map(e => e.course)).size;
-    facultyCount = new Set(enrollments.filter(e => e.primaryFaculty).map(e => e.primaryFaculty)).size;
-    studentCount = new Set(enrollments.map(e => e.personId)).size;
+  if (typeof DEMO_SUMMARY !== 'undefined') {
+    currentStudents = DEMO_SUMMARY.totalStudents || 0;
+    const gpas = (typeof DEMO_STUDENTS !== 'undefined') ? DEMO_STUDENTS.map(s => s.cumGPA).filter(g => g > 0) : [];
+    avgGPA = gpas.length ? (gpas.reduce((a,b) => a+b, 0) / gpas.length).toFixed(2) : 0;
   }
+  if (typeof DEMO_ENROLLMENTS !== 'undefined') {
+    let enrollments = DEMO_ENROLLMENTS;
+    if (progId !== 'all' && typeof DEMO_STUDENTS !== 'undefined') {
+      const ids = new Set(DEMO_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(progId)).map(s => s.personId));
+      enrollments = enrollments.filter(e => ids.has(e.personId));
+      const progStudents = DEMO_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(progId));
+      currentStudents = progStudents.length;
+      const gp = progStudents.map(s => s.cumGPA).filter(g => g > 0);
+      avgGPA = gp.length ? (gp.reduce((a,b) => a+b, 0) / gp.length).toFixed(2) : 0;
+    }
+    currentCourses = new Set(enrollments.map(e => e.course)).size;
+    const graded = enrollments.filter(e => e.letter && e.finalized);
+    const passing = graded.filter(e => !['F','W','WF','I'].includes(e.letter));
+    passRate = graded.length ? ((passing.length / graded.length) * 100).toFixed(1) : 0;
+  }
+
+  // Current term name
+  const currentTerm = (typeof DEMO_ENROLLMENTS !== 'undefined' && DEMO_ENROLLMENTS.length > 0) ? DEMO_ENROLLMENTS[0].termName : 'Current Module';
 
   let statsHtml = `
     <div class="stat-card">
-      <div class="number">${totalEnrollments.toLocaleString()}</div>
-      <div class="label">Total Enrollments</div>
+      <div class="number">${currentStudents}</div>
+      <div class="label">Active Students</div>
     </div>
     <div class="stat-card">
-      <div class="number">${studentCount}</div>
-      <div class="label">Students</div>
+      <div class="number">${avgGPA}</div>
+      <div class="label">Avg GPA</div>
     </div>
     <div class="stat-card">
-      <div class="number">${courseCount}</div>
-      <div class="label">Courses</div>
+      <div class="number">${passRate}%</div>
+      <div class="label">Pass Rate</div>
     </div>
     <div class="stat-card">
-      <div class="number">${facultyCount}</div>
-      <div class="label">Faculty</div>
+      <div class="number">${currentCourses}</div>
+      <div class="label">Courses Offered</div>
     </div>
   `;
   if (responses.length > 0) {
