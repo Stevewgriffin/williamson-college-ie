@@ -409,12 +409,10 @@ textarea.form-textarea:focus { border-color:var(--gold); }
     </div>
   </div>
 
-  <div class="api-key-bar" id="apiKeyBar">
+  <div class="api-key-bar" id="apiKeyBar" style="display:flex;align-items:center;gap:8px;padding:6px 16px">
     <span>Claude AI:</span>
-    <input type="password" id="claudeApiKey" placeholder="Enter your Anthropic API key (sk-ant-...)" onchange="checkApiKey()">
-    <span class="status-dot disconnected" id="apiStatusDot"></span>
-    <span id="apiStatusText">Not connected</span>
-    <button style="background:rgba(255,255,255,0.15);color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.8rem" onclick="checkApiKey()">Connect</button>
+    <span class="status-dot connected" id="apiStatusDot"></span>
+    <span id="apiStatusText">Connected (server-side)</span>
   </div>
 
   <div class="tabs" id="tabBar">
@@ -3909,11 +3907,7 @@ function uploadSyllabus() {
     return;
   }
 
-  const apiKey = document.getElementById('claudeApiKey')?.value;
-  if (!apiKey) {
-    showToast('Please enter your Claude API key at the top of the page to use AI extraction');
-    return;
-  }
+  // API key managed server-side via Netlify function
 
   const file = fileInput.files[0];
   statusEl.innerHTML = '<div class="import-status loading">Reading syllabus file...</div>';
@@ -4043,14 +4037,9 @@ CRITICAL INSTRUCTIONS:
 Here is the syllabus text:
 ${text.substring(0, 8000)}`;
 
-    fetch('https://api.anthropic.com/v1/messages', {
+    fetch('/.netlify/functions/claude', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
@@ -6402,11 +6391,7 @@ function getGASWPrompt(field) {
 }
 
 function aiDraftGASW(field) {
-  const apiKey = document.getElementById("claudeApiKey").value.trim();
-  if (!apiKey) {
-    showToast("Please enter your Claude API key in the top bar first");
-    return;
-  }
+  // API key managed server-side via Netlify function
 
   const textarea = document.getElementById("gasw_" + field);
   const loadingEl = document.getElementById("gasw_" + field + "_loading");
@@ -6420,15 +6405,9 @@ function aiDraftGASW(field) {
 
   const prompt = getGASWPrompt(field);
 
-  fetch("https://api.anthropic.com/v1/messages", {
+  fetch("/.netlify/functions/claude", {
     method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-      "content-type": "application/json",
-      "anthropic-dangerous-direct-browser-access": "true"
-    },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 1024,
@@ -6453,11 +6432,7 @@ function aiDraftGASW(field) {
 }
 
 function aiDraftAllGASW() {
-  const apiKey = document.getElementById("claudeApiKey").value.trim();
-  if (!apiKey) {
-    showToast("Please enter your Claude API key in the top bar first");
-    return;
-  }
+  // API key managed server-side via Netlify function
 
   const fields = ["findings", "changes", "improvement", "impact"];
   const hasContent = fields.some(f => document.getElementById("gasw_" + f).value.trim());
@@ -6628,11 +6603,7 @@ function renderDashCharts() {
 }
 
 function generateDashboardInsights() {
-  const apiKey = document.getElementById("claudeApiKey").value.trim();
-  if (!apiKey) {
-    showToast("Please enter your Claude API key first");
-    return;
-  }
+  // API key managed server-side via Netlify function
 
   document.getElementById("btnDashInsights").disabled = true;
   document.getElementById("dashAIOutput").innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>Generating insights...</span></div>';
@@ -6651,14 +6622,9 @@ ${enrollInfo}
 ${histInfo}
 Provide specific observations about enrollment trends, academic performance, and areas for improvement.`;
 
-  fetch("https://api.anthropic.com/v1/messages", {
+  fetch("/.netlify/functions/claude", {
     method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-      "content-type": "application/json"
-    },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 1024,
@@ -6678,11 +6644,7 @@ Provide specific observations about enrollment trends, academic performance, and
 }
 
 function generateResultsAnalysis() {
-  const apiKey = document.getElementById("claudeApiKey").value.trim();
-  if (!apiKey) {
-    showToast("Please enter your Claude API key first");
-    return;
-  }
+  // API key managed server-side via Netlify function
 
   document.getElementById("btnResultsAI").disabled = true;
   document.getElementById("resultsAIOutput").innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>Analyzing results...</span></div>';
@@ -6710,14 +6672,9 @@ function generateResultsAnalysis() {
   const prompt = `You are an institutional effectiveness analyst at Williamson College. Analyze this data and provide a detailed narrative assessment suitable for SACSCOC reporting. Include strengths, areas of concern, and actionable recommendations.
 ${dataContext}`;
 
-  fetch("https://api.anthropic.com/v1/messages", {
+  fetch("/.netlify/functions/claude", {
     method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-      "content-type": "application/json"
-    },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2048,
@@ -6742,26 +6699,7 @@ ${dataContext}`;
 }
 
 function checkApiKey() {
-  const apiKey = document.getElementById("claudeApiKey").value.trim();
-  const statusDot = document.getElementById("apiStatusDot");
-  const statusText = document.getElementById("apiStatusText");
-
-  if (!apiKey) {
-    statusDot.classList.remove("connected");
-    statusDot.classList.add("disconnected");
-    statusText.textContent = "Not connected";
-    return;
-  }
-
-  if (apiKey.startsWith("sk-ant-")) {
-    statusDot.classList.remove("disconnected");
-    statusDot.classList.add("connected");
-    statusText.textContent = "Connected";
-  } else {
-    statusDot.classList.remove("connected");
-    statusDot.classList.add("disconnected");
-    statusText.textContent = "Invalid key";
-  }
+  // API key is now server-side — always connected
 }
 
 // ============================================================
