@@ -8303,9 +8303,13 @@ async function processSLODocuments() {
           const zip = await JSZip.loadAsync(zipData);
           const zipFiles = [];
           zip.forEach((path, entry) => {
-            if (!entry.dir && (path.endsWith('.docx') || path.endsWith('.pdf') || path.endsWith('.txt'))) {
-              zipFiles.push({ path, entry });
-            }
+            // Skip macOS resource fork files, hidden files, and __MACOSX folder
+            const fileName = path.split('/').pop();
+            if (entry.dir) return;
+            if (fileName.startsWith('.') || fileName.startsWith('._')) return;
+            if (path.includes('__MACOSX')) return;
+            if (!(path.endsWith('.docx') || path.endsWith('.pdf') || path.endsWith('.txt'))) return;
+            zipFiles.push({ path, entry });
           });
           statusEl.innerHTML = `<div class="import-status loading">Found ${zipFiles.length} documents in zip...</div>`;
 
@@ -8342,7 +8346,7 @@ async function processSLODocuments() {
             }
 
             if (!text || text.length < 50) {
-              allResults.push({ file: fileName, student: extractStudentName(fileName), error: 'Could not extract text', scores: {} });
+              allResults.push({ file: fileName, student: extractStudentName(fileName, path), error: 'Could not extract text', scores: {} });
               continue;
             }
 
@@ -8362,7 +8366,7 @@ Score each SLO as:
 Return ONLY valid JSON: {"student_name": "from document", "scores": {"SLO 1": 4, "SLO 2": 3, ...}, "notes": "brief assessment"}
 
 Student document:
-${text.substring(0, 6000)}`;
+${text.substring(0, 15000)}`;
 
             try {
               const resp = await fetch('/.netlify/functions/claude', {
@@ -8375,15 +8379,15 @@ ${text.substring(0, 6000)}`;
                 const jsonMatch = data.content[0].text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                   const parsed = JSON.parse(jsonMatch[0]);
-                  allResults.push({ file: fileName, student: parsed.student_name || extractStudentName(fileName), scores: parsed.scores || {}, notes: parsed.notes || '' });
+                  allResults.push({ file: fileName, student: parsed.student_name || extractStudentName(fileName, path), scores: parsed.scores || {}, notes: parsed.notes || '' });
                 } else {
-                  allResults.push({ file: fileName, student: extractStudentName(fileName), error: 'Could not parse AI response', scores: {} });
+                  allResults.push({ file: fileName, student: extractStudentName(fileName, path), error: 'Could not parse AI response', scores: {} });
                 }
               } else {
-                allResults.push({ file: fileName, student: extractStudentName(fileName), error: data.error?.message || 'API error', scores: {} });
+                allResults.push({ file: fileName, student: extractStudentName(fileName, path), error: data.error?.message || 'API error', scores: {} });
               }
             } catch (err) {
-              allResults.push({ file: fileName, student: extractStudentName(fileName), error: err.message, scores: {} });
+              allResults.push({ file: fileName, student: extractStudentName(fileName, path), error: err.message, scores: {} });
             }
           }
         } catch (zipErr) {
@@ -8461,8 +8465,15 @@ ${text.substring(0, 6000)}`;
   statusEl.innerHTML = `<div class="import-status success">Processed ${allResults.length} documents</div>`;
 }
 
-function extractStudentName(filename) {
-  // Try to extract student name from filename like "LastName, FirstName - SLO.docx"
+function extractStudentName(filename, zipPath) {
+  // Try folder name first (Populi zips use "LastName, FirstName" folders)
+  if (zipPath) {
+    const parts = zipPath.split('/').filter(p => p && !p.endsWith('.docx') && !p.endsWith('.pdf') && !p.endsWith('.txt'));
+    // Find the part that looks like a name (contains comma = "Last, First")
+    const namePart = parts.find(p => p.includes(',')) || parts.find(p => !p.toLowerCase().includes('week') && !p.toLowerCase().includes('assignment') && !p.toLowerCase().includes('slo'));
+    if (namePart) return namePart.trim();
+  }
+  // Fall back to filename
   const name = filename.replace(/\.(docx|pdf|txt)$/i, '').replace(/[-_]?\s*(slo|assessment|learning outcome).*$/i, '').trim();
   return name || 'Unknown Student';
 }
