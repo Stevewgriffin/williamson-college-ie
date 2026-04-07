@@ -5,7 +5,8 @@
  * for the Williamson College IE Assessment System.
  *
  * Usage:
- *   node sync-populi.js                          # full sync, current + historical
+ *   node sync-populi.js                          # incremental sync (new terms only)
+ *   node sync-populi.js --full                    # full re-sync of all terms
  *   node sync-populi.js --key sk_xxx             # pass API key directly
  *   node sync-populi.js --dry-run --verbose       # preview without writing
  *   node sync-populi.js --term 295827             # sync only one term
@@ -30,9 +31,11 @@ const DRY_RUN = args.includes('--dry-run');
 const VERBOSE = args.includes('--verbose');
 const SKIP_ASSIGNMENTS = args.includes('--skip-assignments');
 const UPDATE_CATALOG = args.includes('--update-catalog');
+const FULL_SYNC = args.includes('--full');
 const SINGLE_TERM = getArg('term');
 const BASE_URL = 'https://wc.populiweb.com/api2';
 const OUTPUT_DIR = __dirname;
+const SYNC_STATE_FILE = path.join(OUTPUT_DIR, '.sync-state.json');
 
 if (!API_KEY) {
   console.error('ERROR: No API key provided.');
@@ -200,12 +203,98 @@ async function main() {
   let termsToSync = SINGLE_TERM ? allTerms : pastAndCurrentTerms.filter(t => !isUmbrellaTerm(t));
   console.log(`  ${pastAndCurrentTerms.length} past/current terms, ${termsToSync.length} after filtering umbrellas`);
 
-  // 2. Walk each term and collect data
-  const allStudentsMap = new Map(); // personId -> student data (deduplicated)
+  // 2. Incremental sync: load existing data and only fetch new/active terms
+  const allStudentsMap = new Map();
   const allEnrollments = [];
   const allCourseOfferings = [];
-  const courseOfferingDetails = new Map(); // courseOfferingId -> details
+  const courseOfferingDetails = new Map();
   const termSummaries = [];
+  let syncState = {};
+  const syncedTermIds = new Set();
+
+  // Load previous sync state
+  if (fs.existsSync(SYNC_STATE_FILE) && !FULL_SYNC && !SINGLE_TERM) {
+    try {
+      syncState = JSON.parse(fs.readFileSync(SYNC_STATE_FILE, 'utf8'));
+      console.log(`  Last sync: ${syncState.lastSyncDate || 'unknown'}`);
+      console.log(`  Previously synced ${(syncState.syncedTermIds || []).length} terms`);
+    } catch (e) {
+      console.warn('  Could not read sync state, doing full sync');
+    }
+  }
+
+  // Load existing demo-data.js to preserve historical data
+  const existingDataPath = path.join(OUTPUT_DIR, 'demo-data.js');
+  let existingData = null;
+  if (fs.existsSync(existingDataPath) && !FULL_SYNC && !SINGLE_TERM && syncState.syncedTermIds) {
+    try {
+      // Extract existing data by evaluating the file
+      const existingContent = fs.readFileSync(existingDataPath, 'utf8');
+      const vm = require('vm');
+      const ctx = {};
+      vm.runInNewContext(existingContent, ctx);
+      existingData = ctx;
+
+      // Load existing terms, students, enrollments, course offerings
+      if (ctx.ALL_TERMS) {
+        for (const t of ctx.ALL_TERMS) termSummaries.push(t);
+      }
+      if (ctx.ALL_STUDENTS) {
+        for (const s of ctx.ALL_STUDENTS) allStudentsMap.set(s.personId, s);
+      }
+      if (ctx.ALL_ENROLLMENTS) {
+        allEnrollments.push(...ctx.ALL_ENROLLMENTS);
+      }
+      if (ctx.ALL_COURSE_OFFERINGS) {
+        for (const co of ctx.ALL_COURSE_OFFERINGS) {
+          allCourseOfferings.push(co);
+          courseOfferingDetails.set(co.id, co);
+        }
+      }
+
+      // Track which terms are already synced and finalized
+      for (const tid of (syncState.syncedTermIds || [])) {
+        syncedTermIds.add(tid);
+      }
+
+      console.log(`  Loaded existing: ${allStudentsMap.size} students, ${allEnrollments.length} enrollments`);
+    } catch (e) {
+      console.warn(`  Could not load existing data (${e.message}), doing full sync`);
+      existingData = null;
+      allStudentsMap.clear();
+      allEnrollments.length = 0;
+      allCourseOfferings.length = 0;
+      termSummaries.length = 0;
+    }
+  }
+
+  // Determine which terms need syncing
+  if (!FULL_SYNC && !SINGLE_TERM && syncedTermIds.size > 0) {
+    // Only sync terms that are: (a) not yet synced, OR (b) not finalized (still active/current)
+    const originalCount = termsToSync.length;
+    termsToSync = termsToSync.filter(t => {
+      // Always re-sync terms that haven't ended yet (active terms)
+      if (t.end_date >= today) return true;
+      // Skip terms we've already synced and are in the past
+      if (syncedTermIds.has(t.id)) return false;
+      return true;
+    });
+
+    // Remove stale data for terms we're re-syncing
+    const reSyncIds = new Set(termsToSync.map(t => t.id));
+    // Remove old enrollments/offerings for terms being re-synced
+    for (let i = allEnrollments.length - 1; i >= 0; i--) {
+      if (reSyncIds.has(allEnrollments[i].termId)) allEnrollments.splice(i, 1);
+    }
+    for (let i = allCourseOfferings.length - 1; i >= 0; i--) {
+      if (reSyncIds.has(allCourseOfferings[i].termId)) allCourseOfferings.splice(i, 1);
+    }
+    for (let i = termSummaries.length - 1; i >= 0; i--) {
+      if (reSyncIds.has(termSummaries[i].termId)) termSummaries.splice(i, 1);
+    }
+
+    console.log(`  Incremental: syncing ${termsToSync.length} of ${originalCount} terms (${originalCount - termsToSync.length} already synced)`);
+  }
 
   for (let i = 0; i < termsToSync.length; i++) {
     const term = termsToSync[i];
@@ -535,6 +624,26 @@ async function main() {
     if (UPDATE_CATALOG) {
       updateDataBlock(courseCatalog);
     }
+  }
+
+  // Save sync state for incremental sync
+  if (!DRY_RUN) {
+    const allSyncedIds = [...syncedTermIds];
+    // Add all past terms we just synced (not active ones — they'll be re-synced next time)
+    for (const t of termsToSync) {
+      if (t.end_date < today && !allSyncedIds.includes(t.id)) {
+        allSyncedIds.push(t.id);
+      }
+    }
+    const state = {
+      lastSyncDate: new Date().toISOString(),
+      syncedTermIds: allSyncedIds,
+      totalStudents: allStudentsMap.size,
+      totalEnrollments: allEnrollments.length,
+      totalTerms: termSummaries.length,
+    };
+    fs.writeFileSync(SYNC_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    console.log(`  Saved sync state to ${SYNC_STATE_FILE}`);
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);

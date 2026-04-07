@@ -170,6 +170,7 @@ textarea.form-textarea:focus { border-color:var(--gold); }
 .status-item .dot.submitted { background: var(--success); }
 .status-item .dot.draft { background: var(--warning); }
 .status-item .dot.pending { background: #ccc; }
+.status-item .dot.populi { background: #2196f3; }
 
 .collapsible-card { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .collapsible-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: #f9f9f9; cursor: pointer; user-select: none; font-weight: 600; color: var(--maroon); border-bottom: 2px solid transparent; transition: all .2s; }
@@ -4569,6 +4570,111 @@ function switchTab(tabName) {
 }
 
 // ============================================================
+// POPULI DATA HELPERS FOR INSTITUTIONAL DATA TAB
+// ============================================================
+function getPopuliDataForMonth(year, month) {
+  // Returns computed institutional data from Populi for the given month
+  if (typeof ALL_TERMS === 'undefined' || typeof ALL_ENROLLMENTS === 'undefined') return null;
+
+  // Find terms that overlap with this month
+  const monthStart = `${year}-${month.padStart(2, '0')}-01`;
+  const nextMonth = parseInt(month) === 12 ? `${parseInt(year)+1}-01-31` : `${year}-${String(parseInt(month)+1).padStart(2,'0')}-28`;
+  const matchingTerms = ALL_TERMS.filter(t => t.startDate <= nextMonth && t.endDate >= monthStart);
+  if (matchingTerms.length === 0) return null;
+
+  const matchingTermNames = new Set(matchingTerms.map(t => t.termName));
+
+  // Get enrollments for matching terms
+  const termEnrollments = ALL_ENROLLMENTS.filter(e => matchingTermNames.has(e.termName));
+  if (termEnrollments.length === 0) return null;
+
+  // Get unique students in these terms
+  const studentIds = new Set(termEnrollments.map(e => e.personId));
+  const students = (typeof ALL_STUDENTS !== 'undefined')
+    ? ALL_STUDENTS.filter(s => studentIds.has(s.personId))
+    : [];
+
+  // Enrollment by program
+  const enrollmentByProgram = {};
+  const programs = ["ASL", "BSBA", "BSML", "MAOL", "MABS", "MATS", "MATBL", "MAIL"];
+  for (const prog of programs) enrollmentByProgram[prog] = 0;
+  for (const s of students) {
+    const deg = s.degree || '';
+    // Handle comma-separated degrees (e.g. "BSBA, MAOL")
+    const degs = deg.split(',').map(d => d.trim());
+    for (const d of degs) {
+      if (programs.includes(d)) enrollmentByProgram[d]++;
+    }
+  }
+
+  // Withdrawals: status = WITHDRAWN
+  const withdrawn = termEnrollments.filter(e => e.status === 'WITHDRAWN').length;
+
+  // GPA
+  const gpas = students.map(s => s.cumGPA).filter(g => g > 0);
+  const avgGPA = gpas.length ? Math.round((gpas.reduce((a, b) => a + b, 0) / gpas.length) * 100) / 100 : 0;
+
+  // Pass/fail rate
+  const graded = termEnrollments.filter(e => e.letter && e.finalized);
+  const passing = graded.filter(e => !['F', 'W', 'WF', 'I'].includes(e.letter));
+  const passRate = graded.length ? Math.round((passing.length / graded.length) * 1000) / 10 : 0;
+  const failRate = graded.length ? Math.round(((graded.length - passing.length) / graded.length) * 1000) / 10 : 0;
+
+  // Probation (GPA < 2.0) and Dean's List (GPA >= 3.5)
+  const probation = students.filter(s => s.cumGPA > 0 && s.cumGPA < 2.0).length;
+  const deansList = students.filter(s => s.cumGPA >= 3.5).length;
+
+  // Attendance - from course offering enrollment data
+  // We don't have attendance % directly in ALL_ENROLLMENTS; check if it's there
+  // For now, compute from term summary if available
+  const termAttendances = matchingTerms.map(t => t.avgAttendance || 0).filter(a => a > 0);
+  const avgAttendance = termAttendances.length
+    ? Math.round((termAttendances.reduce((a, b) => a + b, 0) / termAttendances.length) * 10) / 10
+    : 0;
+
+  // Continuing vs new: a student is "continuing" if they appeared in a prior term
+  const priorTermNames = ALL_TERMS
+    .filter(t => t.startDate < monthStart)
+    .map(t => t.termName);
+  const priorStudentIds = new Set();
+  if (typeof ALL_ENROLLMENTS !== 'undefined') {
+    for (const e of ALL_ENROLLMENTS) {
+      if (priorTermNames.includes(e.termName)) priorStudentIds.add(e.personId);
+    }
+  }
+  const continuing = [...studentIds].filter(id => priorStudentIds.has(id)).length;
+  const newStudents = studentIds.size - continuing;
+
+  // Retention rate
+  const retentionRate = (continuing + newStudents) > 0
+    ? Math.round((continuing / (continuing + withdrawn)) * 1000) / 10
+    : 0;
+
+  return {
+    enrollment: {
+      ...Object.fromEntries(programs.map(p => [p, { new: enrollmentByProgram[p] }])),
+      continuing,
+      stopouts: withdrawn,
+      transfers: 0,
+      retentionRate: retentionRate > 100 ? 100 : retentionRate,
+    },
+    academic: {
+      avgGPA,
+      probationCount: probation,
+      deansListCount: deansList,
+      passRate,
+      failRate,
+    },
+    studentServices: {
+      attendanceRate: avgAttendance,
+    },
+    _populiSource: true,
+    _matchingTerms: matchingTerms.map(t => t.termName),
+    _studentCount: studentIds.size,
+  };
+}
+
+// ============================================================
 // INSTITUTIONAL DATA FUNCTIONS
 // ============================================================
 function populateMonthSelector() {
@@ -4604,9 +4710,32 @@ function loadInstitutionalMonth() {
   db.ref(`institutionalData/${year}/${month}`).once("value", snap => {
     currentMonthData = snap.val() || {};
 
+    // Auto-populate from Populi data if Firebase has no data for this section
+    const populiData = getPopuliDataForMonth(year, month);
+    let populiNotice = '';
+    if (populiData) {
+      if (!currentMonthData.enrollment) {
+        currentMonthData.enrollment = populiData.enrollment;
+      }
+      if (!currentMonthData.academic) {
+        currentMonthData.academic = populiData.academic;
+      }
+      if (!currentMonthData.studentServices) {
+        currentMonthData.studentServices = { ...currentMonthData.studentServices, ...populiData.studentServices };
+      }
+      populiNotice = `
+        <div style="background:#f0f7e6;border:1px solid #8bc34a;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.9rem">
+          <strong style="color:#33691e">Populi Data Available</strong> —
+          Auto-populated from ${populiData._matchingTerms.join(', ')}
+          (${populiData._studentCount} students).
+          Review and save to finalize, or edit any values before saving.
+        </div>
+      `;
+    }
+
     const statusHTML = `
       <div class="status-item">
-        <div class="dot ${currentMonthData.enrollment?.submittedAt ? 'submitted' : (currentMonthData.enrollment ? 'draft' : 'pending')}"></div>
+        <div class="dot ${currentMonthData.enrollment?.submittedAt ? 'submitted' : (currentMonthData.enrollment ? (populiData && !snap.val()?.enrollment ? 'populi' : 'draft') : 'pending')}"></div>
         <span>Enrollment & Retention</span>
       </div>
       <div class="status-item">
@@ -4614,11 +4743,11 @@ function loadInstitutionalMonth() {
         <span>Financial Metrics</span>
       </div>
       <div class="status-item">
-        <div class="dot ${currentMonthData.academic?.submittedAt ? 'submitted' : (currentMonthData.academic ? 'draft' : 'pending')}"></div>
+        <div class="dot ${currentMonthData.academic?.submittedAt ? 'submitted' : (currentMonthData.academic ? (populiData && !snap.val()?.academic ? 'populi' : 'draft') : 'pending')}"></div>
         <span>Academic Performance</span>
       </div>
       <div class="status-item">
-        <div class="dot ${currentMonthData.studentServices?.submittedAt ? 'submitted' : (currentMonthData.studentServices ? 'draft' : 'pending')}"></div>
+        <div class="dot ${currentMonthData.studentServices?.submittedAt ? 'submitted' : (currentMonthData.studentServices ? (populiData && !snap.val()?.studentServices ? 'populi' : 'draft') : 'pending')}"></div>
         <span>Student Services</span>
       </div>
     `;
@@ -4630,12 +4759,14 @@ function loadInstitutionalMonth() {
       document.getElementById("closeMonthControl").style.display = "none";
     }
 
+    formsContainer.innerHTML = populiNotice;
     renderEnrollmentCard(year, month);
     renderFinancialCard(year, month);
     renderAcademicCard(year, month);
     renderStudentServicesCard(year, month);
 
-    if (Object.keys(currentMonthData).length > 0) {
+    // Show trends if we have any data (Firebase or Populi)
+    if (Object.keys(currentMonthData).length > 0 || populiData) {
       document.getElementById("trendsDashboard").style.display = "block";
       loadTrendsCharts(year, month);
     } else {
