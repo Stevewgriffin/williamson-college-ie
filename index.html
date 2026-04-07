@@ -600,9 +600,7 @@ textarea.form-textarea:focus { border-color:var(--gold); }
           <select class="form-select" id="gaswProgram" onchange="loadGASW()">
             <option value="">Select Program...</option>
           </select>
-          <select class="form-select" id="gaswCycle">
-            <option value="2025-2026">2025-2026</option>
-            <option value="2024-2025">2024-2025</option>
+          <select class="form-select" id="gaswCycle" onchange="loadGASW()">
           </select>
         </div>
       </div>
@@ -780,8 +778,6 @@ textarea.form-textarea:focus { border-color:var(--gold); }
         <p>Generate formal IE Committee reports for the Board of Trustees showing how assessment data drives institutional improvement.</p>
         <div class="flex-gap mt-16">
           <select class="form-select" id="reportPeriod">
-            <option value="2025-2026">2025-2026</option>
-            <option value="2024-2025">2024-2025</option>
           </select>
           <select class="form-select" id="reportType">
             <option value="full">Full Annual IE Report</option>
@@ -4667,6 +4663,26 @@ function populateTermDropdowns() {
 
   const termNames = termsWithStudents.map(t => t.termName);
 
+  // Populate GASW and IE Reports cycle dropdowns with academic years from ALL_TERMS
+  const academicYears = new Set();
+  ALL_TERMS.forEach(t => {
+    const match = t.termName.match(/(\d{4})-(\d{4})/);
+    if (match) academicYears.add(match[0]);
+  });
+  const sortedYears = [...academicYears].sort().reverse();
+
+  ['gaswCycle', 'reportPeriod'].forEach(selectId => {
+    const sel = document.getElementById(selectId);
+    if (sel && sel.options.length === 0) {
+      sortedYears.forEach(year => {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year;
+        sel.appendChild(opt);
+      });
+    }
+  });
+
   // Populate Take Survey semester dropdown
   const surveySem = document.getElementById('surveySemester');
   if (surveySem && surveySem.options.length === 0) {
@@ -6290,42 +6306,65 @@ function calculateSLOScores(responses, prog) {
   });
 
   // Populi fallback: compute SLO achievement from course grades
-  // Each PLO maps to specific courses via ASSESSMENT_INSTRUMENTS
-  // A student's grade in that course (as %) becomes their SLO score on a 4.0 scale
   const hasSurveyData = Object.values(sloScores).some(arr => arr.length > 0);
-  if (!hasSurveyData && typeof ALL_ENROLLMENTS !== 'undefined' && typeof ASSESSMENT_INSTRUMENTS !== 'undefined') {
+  if (!hasSurveyData && typeof ALL_ENROLLMENTS !== 'undefined') {
+
+    function gradeToGPA(grade) {
+      if (grade >= 93) return 4.0;
+      if (grade >= 90) return 3.7;
+      if (grade >= 87) return 3.3;
+      if (grade >= 83) return 3.0;
+      if (grade >= 80) return 2.7;
+      if (grade >= 77) return 2.3;
+      if (grade >= 73) return 2.0;
+      if (grade >= 70) return 1.7;
+      if (grade >= 67) return 1.3;
+      if (grade >= 60) return 1.0;
+      return 0;
+    }
+
+    // Get enrollments for students in this program
+    const progStudentIds = (typeof ALL_STUDENTS !== 'undefined')
+      ? new Set(ALL_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(prog.id)).map(s => s.personId))
+      : null;
+
+    // Strategy 1: Use ASSESSMENT_INSTRUMENTS if available for this program
     const progKey = prog.id.toLowerCase();
-    const instruments = ASSESSMENT_INSTRUMENTS[progKey];
+    const instruments = (typeof ASSESSMENT_INSTRUMENTS !== 'undefined') ? ASSESSMENT_INSTRUMENTS[progKey] : null;
+
     if (instruments) {
       Object.keys(instruments).forEach(sloId => {
         const sloInstr = instruments[sloId];
         if (!sloInstr || !sloInstr.courses) return;
-
-        // Find all enrollments in the mapped courses
         sloInstr.courses.forEach(courseCode => {
-          const courseEnrollments = ALL_ENROLLMENTS.filter(e =>
-            e.course === courseCode && e.finalized && e.grade > 0
-          );
-          courseEnrollments.forEach(e => {
-            // Convert percentage grade to 4.0 scale
-            // A (90-100) = 4.0, B (80-89) = 3.0, C (70-79) = 2.0, D (60-69) = 1.0, F (<60) = 0
-            let gpa4;
-            if (e.grade >= 93) gpa4 = 4.0;
-            else if (e.grade >= 90) gpa4 = 3.7;
-            else if (e.grade >= 87) gpa4 = 3.3;
-            else if (e.grade >= 83) gpa4 = 3.0;
-            else if (e.grade >= 80) gpa4 = 2.7;
-            else if (e.grade >= 77) gpa4 = 2.3;
-            else if (e.grade >= 73) gpa4 = 2.0;
-            else if (e.grade >= 70) gpa4 = 1.7;
-            else if (e.grade >= 67) gpa4 = 1.3;
-            else if (e.grade >= 60) gpa4 = 1.0;
-            else gpa4 = 0;
+          ALL_ENROLLMENTS.filter(e => e.course === courseCode && e.finalized && e.grade > 0)
+            .forEach(e => { if (sloScores[sloId]) sloScores[sloId].push(gradeToGPA(e.grade)); });
+        });
+      });
+    } else {
+      // Strategy 2: For programs without ASSESSMENT_INSTRUMENTS,
+      // distribute program course grades across PLOs evenly.
+      // Each PLO gets scores from the courses in its position in the curriculum.
+      const progCourses = prog.courses.map(c => c.code);
+      const sloIds = Object.keys(sloScores);
+      const coursesPerSLO = Math.max(1, Math.floor(progCourses.length / sloIds.length));
 
-            if (sloScores[sloId]) {
-              sloScores[sloId].push(gpa4);
-            }
-          });
+      sloIds.forEach((sloId, idx) => {
+        // Assign a slice of courses to each PLO
+        const start = idx * coursesPerSLO;
+        const assignedCourses = progCourses.slice(start, start + coursesPerSLO);
+        // Also add remaining courses to last PLO
+        if (idx === sloIds.length - 1) {
+          assignedCourses.push(...progCourses.slice(start + coursesPerSLO));
+        }
+
+        assignedCourses.forEach(courseCode => {
+          let enrollments = ALL_ENROLLMENTS.filter(e => e.course === courseCode && e.finalized && e.grade > 0);
+          // If we know program students, filter to them
+          if (progStudentIds) {
+            enrollments = enrollments.filter(e => progStudentIds.has(e.personId));
+          }
+          enrollments.forEach(e => { sloScores[sloId].push(gradeToGPA(e.grade)); });
         });
       });
     }
