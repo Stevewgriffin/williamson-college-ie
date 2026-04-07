@@ -8296,8 +8296,99 @@ async function processSLODocuments() {
       } else if (file.name.endsWith('.pdf')) {
         text = await readPdfFileAsText(file);
       } else if (file.name.endsWith('.zip')) {
-        statusEl.innerHTML = `<div class="import-status loading">Extracting zip file...</div>`;
-        showToast('Zip files not yet supported — please upload individual .docx or .pdf files');
+        // Extract zip and process each file inside
+        statusEl.innerHTML = `<div class="import-status loading">Extracting zip file: ${file.name}...</div>`;
+        try {
+          const zipData = await file.arrayBuffer();
+          const zip = await JSZip.loadAsync(zipData);
+          const zipFiles = [];
+          zip.forEach((path, entry) => {
+            if (!entry.dir && (path.endsWith('.docx') || path.endsWith('.pdf') || path.endsWith('.txt'))) {
+              zipFiles.push({ path, entry });
+            }
+          });
+          statusEl.innerHTML = `<div class="import-status loading">Found ${zipFiles.length} documents in zip...</div>`;
+
+          for (let zi = 0; zi < zipFiles.length; zi++) {
+            const { path, entry } = zipFiles[zi];
+            const fileName = path.split('/').pop();
+            statusEl.innerHTML = `<div class="import-status loading">Processing ${zi+1}/${zipFiles.length}: ${fileName}...</div>`;
+
+            let text = '';
+            if (fileName.endsWith('.docx')) {
+              const docxData = await entry.async('arraybuffer');
+              try {
+                const innerZip = await JSZip.loadAsync(docxData);
+                const docXml = await innerZip.file('word/document.xml').async('text');
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(docXml, 'text/xml');
+                const tNodes = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 't');
+                const texts = [];
+                for (let i = 0; i < tNodes.length; i++) texts.push(tNodes[i].textContent);
+                text = texts.join(' ');
+              } catch (e) { console.warn('DOCX parse error:', e); }
+            } else if (fileName.endsWith('.pdf') && typeof pdfjsLib !== 'undefined') {
+              const pdfData = await entry.async('arraybuffer');
+              try {
+                const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+                for (let p = 1; p <= pdf.numPages; p++) {
+                  const page = await pdf.getPage(p);
+                  const content = await page.getTextContent();
+                  text += content.items.map(item => item.str).join(' ') + '\n';
+                }
+              } catch (e) { console.warn('PDF parse error:', e); }
+            } else {
+              text = await entry.async('text');
+            }
+
+            if (!text || text.length < 50) {
+              allResults.push({ file: fileName, student: extractStudentName(fileName), error: 'Could not extract text', scores: {} });
+              continue;
+            }
+
+            // Score with AI
+            const prompt = `You are scoring a Student Learning Outcome (SLO) end-of-course assessment for ${courseCode} at Williamson College.
+
+The course has these SLOs:
+${sloList}
+
+Score each SLO as:
+- 4 = Exemplary (clear artifact + thorough explanation demonstrating mastery)
+- 3 = Proficient (valid artifact + adequate explanation)
+- 2 = Developing (artifact present but weak explanation or unclear connection)
+- 1 = Beginning (minimal or no evidence)
+- 0 = Not submitted / no response for this SLO
+
+Return ONLY valid JSON: {"student_name": "from document", "scores": {"SLO 1": 4, "SLO 2": 3, ...}, "notes": "brief assessment"}
+
+Student document:
+${text.substring(0, 6000)}`;
+
+            try {
+              const resp = await fetch('/.netlify/functions/claude', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 512 })
+              });
+              const data = await resp.json();
+              if (data.content && data.content[0]) {
+                const jsonMatch = data.content[0].text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  const parsed = JSON.parse(jsonMatch[0]);
+                  allResults.push({ file: fileName, student: parsed.student_name || extractStudentName(fileName), scores: parsed.scores || {}, notes: parsed.notes || '' });
+                } else {
+                  allResults.push({ file: fileName, student: extractStudentName(fileName), error: 'Could not parse AI response', scores: {} });
+                }
+              } else {
+                allResults.push({ file: fileName, student: extractStudentName(fileName), error: data.error?.message || 'API error', scores: {} });
+              }
+            } catch (err) {
+              allResults.push({ file: fileName, student: extractStudentName(fileName), error: err.message, scores: {} });
+            }
+          }
+        } catch (zipErr) {
+          allResults.push({ file: file.name, student: 'Zip Error', error: 'Could not extract zip: ' + zipErr.message, scores: {} });
+        }
         continue;
       } else {
         text = await file.text();
