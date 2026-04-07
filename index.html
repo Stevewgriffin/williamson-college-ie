@@ -6127,13 +6127,16 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
   });
 
   const hasAnySLOData = Object.values(sloScores).some(v => v > 0);
-  const sloSource = surveyResponses.length > 0 ? 'Survey' : (hasAnySLOData ? 'Populi Course Grades' : '');
-  html += `<div style="margin-top:10px"><strong>SLO Score Averages${sloSource ? ` <span style="font-size:0.75rem;color:#2196f3">(${sloSource})</span>` : ''}:</strong></div>`;
-  Object.entries(sloScores).forEach(([sloId, score]) => {
-    const slo = prog.slos.find(s => s.id === sloId);
-    const status = score === 0 ? '—' : (score < 3.5 ? '⚠️' : '✓');
-    html += `<div style="margin-left:12px;font-size:0.85rem">${status} ${slo ? slo.id : sloId}: ${score.toFixed(2)}</div>`;
-  });
+  if (hasAnySLOData) {
+    html += `<div style="margin-top:10px"><strong>SLO Score Averages <span style="font-size:0.75rem;color:#2196f3">(Survey Data)</span>:</strong></div>`;
+    Object.entries(sloScores).forEach(([sloId, score]) => {
+      const slo = prog.slos.find(s => s.id === sloId);
+      const status = score === 0 ? '—' : (score < 3.5 ? '⚠️' : '✓');
+      html += `<div style="margin-left:12px;font-size:0.85rem">${status} ${slo ? slo.id : sloId}: ${score.toFixed(2)}</div>`;
+    });
+  } else {
+    html += `<div style="margin-top:10px;color:#636e72;font-size:0.85rem">SLO assessment data requires faculty survey responses or rubric-scored post-tests. Use the <strong>Take Survey</strong> tab or <strong>Faculty Reports</strong> to submit assessment data.</div>`;
+  }
 
   html += `</div></div>`;
 
@@ -6231,12 +6234,29 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
     const progAcad = academicData[progId];
     html += `<div><strong>Average GPA:</strong> ${(progAcad.gpa || 0).toFixed(2)}</div>`;
     html += `<div><strong>Course Completion:</strong> ${(progAcad.completion || 0).toFixed(1)}%</div>`;
-  } else if (typeof ALL_STUDENTS !== 'undefined') {
-    // Populi fallback: compute GPA and academic stats for this program
-    const progStudents = ALL_STUDENTS.filter(s => {
-      if (!s.degree) return false;
-      return s.degree.split(',').map(d => d.trim()).includes(progId);
+  } else if (typeof ALL_ENROLLMENTS !== 'undefined' && typeof ALL_STUDENTS !== 'undefined') {
+    // Populi fallback: compute GPA and academic stats for this program in this cycle
+    const cycleStart = cycle.split("-")[0];
+    const cycleEnd = cycle.split("-")[1] || (parseInt(cycleStart) + 1);
+    const cycleStartDate = `${cycleStart}-07-01`;
+    const cycleEndDate = `${cycleEnd}-06-30`;
+
+    // Find terms in this academic year
+    const cycleTermNames = (typeof ALL_TERMS !== 'undefined')
+      ? ALL_TERMS.filter(t => t.startDate >= cycleStartDate && t.startDate <= cycleEndDate).map(t => t.termName)
+      : [];
+
+    // Find students enrolled in this program during this cycle
+    const progStudentIds = new Set();
+    ALL_ENROLLMENTS.forEach(e => {
+      if (!cycleTermNames.includes(e.termName)) return;
+      const s = ALL_STUDENTS.find(st => st.personId === e.personId);
+      if (s && s.degree && s.degree.split(',').map(d => d.trim()).includes(progId)) {
+        progStudentIds.add(e.personId);
+      }
     });
+    const progStudents = ALL_STUDENTS.filter(s => progStudentIds.has(s.personId));
+
     const gpas = progStudents.map(s => s.cumGPA).filter(g => g > 0);
     const avgGPA = gpas.length ? (gpas.reduce((a, b) => a + b, 0) / gpas.length) : 0;
     const probation = progStudents.filter(s => s.cumGPA > 0 && s.cumGPA < 2.0).length;
@@ -6247,9 +6267,9 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
       html += `<div><strong>Students:</strong> ${progStudents.length}</div>`;
       html += `<div><strong>Dean's List (GPA ≥ 3.5):</strong> ${deansList}</div>`;
       html += `<div><strong>Academic Probation (GPA < 2.0):</strong> ${probation}</div>`;
-      html += `<div style="margin-top:6px;font-size:0.8rem;color:#2196f3">Source: Populi (most recent data)</div>`;
+      html += `<div style="margin-top:6px;font-size:0.8rem;color:#2196f3">Source: Populi (${cycle})</div>`;
     } else {
-      html += `<div style="color:#636e72">No academic data for ${progId}</div>`;
+      html += `<div style="color:#636e72">No students enrolled in ${progId} during ${cycle}</div>`;
     }
   } else {
     html += `<div style="color:#636e72">No academic data available</div>`;
@@ -6258,8 +6278,10 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
   html += `</div></div>`;
 
   const totalCourses = prog.courses.length;
-  const mappedCourses = Object.keys(mappingData).length;
-  const mappingPercent = totalCourses > 0 ? ((mappedCourses / totalCourses) * 100).toFixed(0) : 0;
+  // Only count mappings that match this program's courses
+  const progCourseCodes = new Set(prog.courses.map(c => c.code || c.id));
+  const mappedCourses = Object.keys(mappingData).filter(k => progCourseCodes.has(k)).length;
+  const mappingPercent = totalCourses > 0 ? Math.min(100, ((mappedCourses / totalCourses) * 100)).toFixed(0) : 0;
 
   html += `<div style="background:white;border-radius:8px;padding:16px;border:1px solid #dfe6e9">
     <h5 style="color:#722F37;margin-bottom:10px;font-weight:600">Mapping Status</h5>
@@ -6305,70 +6327,9 @@ function calculateSLOScores(responses, prog) {
     }
   });
 
-  // Populi fallback: compute SLO achievement from course grades
-  const hasSurveyData = Object.values(sloScores).some(arr => arr.length > 0);
-  if (!hasSurveyData && typeof ALL_ENROLLMENTS !== 'undefined') {
-
-    function gradeToGPA(grade) {
-      if (grade >= 93) return 4.0;
-      if (grade >= 90) return 3.7;
-      if (grade >= 87) return 3.3;
-      if (grade >= 83) return 3.0;
-      if (grade >= 80) return 2.7;
-      if (grade >= 77) return 2.3;
-      if (grade >= 73) return 2.0;
-      if (grade >= 70) return 1.7;
-      if (grade >= 67) return 1.3;
-      if (grade >= 60) return 1.0;
-      return 0;
-    }
-
-    // Get enrollments for students in this program
-    const progStudentIds = (typeof ALL_STUDENTS !== 'undefined')
-      ? new Set(ALL_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(prog.id)).map(s => s.personId))
-      : null;
-
-    // Strategy 1: Use ASSESSMENT_INSTRUMENTS if available for this program
-    const progKey = prog.id.toLowerCase();
-    const instruments = (typeof ASSESSMENT_INSTRUMENTS !== 'undefined') ? ASSESSMENT_INSTRUMENTS[progKey] : null;
-
-    if (instruments) {
-      Object.keys(instruments).forEach(sloId => {
-        const sloInstr = instruments[sloId];
-        if (!sloInstr || !sloInstr.courses) return;
-        sloInstr.courses.forEach(courseCode => {
-          ALL_ENROLLMENTS.filter(e => e.course === courseCode && e.finalized && e.grade > 0)
-            .forEach(e => { if (sloScores[sloId]) sloScores[sloId].push(gradeToGPA(e.grade)); });
-        });
-      });
-    } else {
-      // Strategy 2: For programs without ASSESSMENT_INSTRUMENTS,
-      // distribute program course grades across PLOs evenly.
-      // Each PLO gets scores from the courses in its position in the curriculum.
-      const progCourses = prog.courses.map(c => c.code);
-      const sloIds = Object.keys(sloScores);
-      const coursesPerSLO = Math.max(1, Math.floor(progCourses.length / sloIds.length));
-
-      sloIds.forEach((sloId, idx) => {
-        // Assign a slice of courses to each PLO
-        const start = idx * coursesPerSLO;
-        const assignedCourses = progCourses.slice(start, start + coursesPerSLO);
-        // Also add remaining courses to last PLO
-        if (idx === sloIds.length - 1) {
-          assignedCourses.push(...progCourses.slice(start + coursesPerSLO));
-        }
-
-        assignedCourses.forEach(courseCode => {
-          let enrollments = ALL_ENROLLMENTS.filter(e => e.course === courseCode && e.finalized && e.grade > 0);
-          // If we know program students, filter to them
-          if (progStudentIds) {
-            enrollments = enrollments.filter(e => progStudentIds.has(e.personId));
-          }
-          enrollments.forEach(e => { sloScores[sloId].push(gradeToGPA(e.grade)); });
-        });
-      });
-    }
-  }
+  // SLO scores require actual assessment data (survey responses or rubric-scored assignments).
+  // Course grades are NOT a valid proxy for PLO achievement — they measure overall course
+  // performance, not specific learning outcomes. We only show SLO scores from real assessment data.
 
   const sloAvgs = {};
   Object.keys(sloScores).forEach(sloId => {
