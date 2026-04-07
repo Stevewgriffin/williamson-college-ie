@@ -521,10 +521,6 @@ textarea.form-textarea:focus { border-color:var(--gold); }
             <option value="">Select Course...</option>
           </select>
           <select class="form-select" id="surveySemester">
-            <option value="Spring 2026">Spring 2026</option>
-            <option value="Fall 2025">Fall 2025</option>
-            <option value="Summer 2026">Summer 2026</option>
-            <option value="Fall 2026">Fall 2026</option>
           </select>
           <button class="btn btn-primary" onclick="generateSurvey()">Generate Survey</button>
         </div>
@@ -541,9 +537,7 @@ textarea.form-textarea:focus { border-color:var(--gold); }
             <option value="all">All Programs</option>
           </select>
           <select class="form-select" id="resultsSemester" onchange="loadResults()">
-            <option value="all">All Semesters</option>
-            <option value="Spring 2026">Spring 2026</option>
-            <option value="Fall 2025">Fall 2025</option>
+            <option value="all">All Modules</option>
           </select>
         </div>
       </div>
@@ -629,9 +623,6 @@ textarea.form-textarea:focus { border-color:var(--gold); }
           <option value="">Select Course...</option>
         </select>
         <select class="form-select" id="frTerm">
-          <option value="Spring 2026">Spring 2026</option>
-          <option value="Fall 2025">Fall 2025</option>
-          <option value="Summer 2025">Summer 2025</option>
         </select>
       </div>
       <div id="facultyReportForm"></div>
@@ -4513,6 +4504,7 @@ function initializeApp() {
   populateResultsPrograms();
   populateGASWPrograms();
   populateMonthSelector();
+  populateTermDropdowns();
   populatePopuliMonthSelector();
   loadPopuliImportHistory();
   loadDashboard();
@@ -4672,6 +4664,52 @@ function getPopuliDataForMonth(year, month) {
     _matchingTerms: matchingTerms.map(t => t.termName),
     _studentCount: studentIds.size,
   };
+}
+
+// ============================================================
+// POPULATE TERM DROPDOWNS FROM POPULI DATA
+// ============================================================
+function populateTermDropdowns() {
+  if (typeof ALL_TERMS === 'undefined' || !ALL_TERMS.length) return;
+
+  // Get recent terms sorted newest first (only terms with students)
+  const termsWithStudents = ALL_TERMS.filter(t => t.studentCount > 0)
+    .sort((a, b) => b.startDate.localeCompare(a.startDate));
+
+  const termNames = termsWithStudents.map(t => t.termName);
+
+  // Populate Take Survey semester dropdown
+  const surveySem = document.getElementById('surveySemester');
+  if (surveySem && surveySem.options.length === 0) {
+    termNames.slice(0, 20).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      surveySem.appendChild(opt);
+    });
+  }
+
+  // Populate Results & Analytics semester dropdown
+  const resultsSem = document.getElementById('resultsSemester');
+  if (resultsSem && resultsSem.options.length <= 1) {
+    termNames.slice(0, 20).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      resultsSem.appendChild(opt);
+    });
+  }
+
+  // Populate Faculty Reports term dropdown
+  const frTerm = document.getElementById('frTerm');
+  if (frTerm && frTerm.options.length === 0) {
+    termNames.slice(0, 20).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      frTerm.appendChild(opt);
+    });
+  }
 }
 
 // ============================================================
@@ -5822,68 +5860,126 @@ function loadResults() {
 }
 
 function renderResultsStats(responses) {
+  // Use survey responses if available, otherwise show Populi enrollment stats
+  let totalLabel, totalVal, col2Label, col2Val, col3Label, col3Val;
+
+  if (responses.length > 0) {
+    totalVal = responses.length;
+    totalLabel = "Total Responses";
+    col2Val = new Set(responses.map(r => r.program)).size;
+    col2Label = "Programs";
+    col3Val = new Set(responses.map(r => r.submittedBy)).size;
+    col3Label = "Unique Instructors";
+  } else if (typeof ALL_ENROLLMENTS !== 'undefined') {
+    const progId = document.getElementById("resultsProgram").value;
+    let enrollments = ALL_ENROLLMENTS.filter(e => e.finalized);
+    if (progId !== 'all' && typeof ALL_STUDENTS !== 'undefined') {
+      const ids = new Set(ALL_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(progId)).map(s => s.personId));
+      enrollments = enrollments.filter(e => ids.has(e.personId));
+    }
+    totalVal = enrollments.length;
+    totalLabel = "Total Enrollments";
+    col2Val = new Set(enrollments.map(e => e.course)).size;
+    col2Label = "Courses";
+    col3Val = new Set(enrollments.filter(e => e.primaryFaculty).map(e => e.primaryFaculty)).size;
+    col3Label = "Faculty";
+  } else {
+    totalVal = 0; totalLabel = "Total Responses";
+    col2Val = 0; col2Label = "Programs";
+    col3Val = 0; col3Label = "Unique Instructors";
+  }
+
   const statsHtml = `
     <div class="stat-card">
-      <div class="number">${responses.length}</div>
-      <div class="label">Total Responses</div>
+      <div class="number">${totalVal}</div>
+      <div class="label">${totalLabel}</div>
     </div>
     <div class="stat-card">
-      <div class="number">${new Set(responses.map(r => r.program)).size}</div>
-      <div class="label">Programs</div>
+      <div class="number">${col2Val}</div>
+      <div class="label">${col2Label}</div>
     </div>
     <div class="stat-card">
-      <div class="number">${new Set(responses.map(r => r.submittedBy)).size}</div>
-      <div class="label">Unique Instructors</div>
+      <div class="number">${col3Val}</div>
+      <div class="label">${col3Label}</div>
     </div>
   `;
   document.getElementById("resultsStats").innerHTML = statsHtml;
 }
 
 function renderResultsCharts(responses) {
-  // Placeholder charts
+  // Grade Distribution by Program (from Populi)
+  const progId = document.getElementById("resultsProgram").value;
   const ctxSLO = document.getElementById("chartSLODetail").getContext("2d");
-  new Chart(ctxSLO, {
-    type: "bar",
-    data: {
-      labels: ["SLO 1", "SLO 2", "SLO 3"],
-      datasets: [{
-        label: "Avg Score",
-        data: [4.2, 3.8, 4.1],
-        backgroundColor: "#722F37"
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: true }
-  });
 
+  if (typeof ALL_ENROLLMENTS !== 'undefined') {
+    // Filter enrollments by selected program
+    let enrollments = ALL_ENROLLMENTS.filter(e => e.finalized && e.letter);
+    if (progId !== 'all' && typeof ALL_STUDENTS !== 'undefined') {
+      const progStudentIds = new Set(ALL_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(progId)).map(s => s.personId));
+      enrollments = enrollments.filter(e => progStudentIds.has(e.personId));
+    }
+
+    const gradeDist = { A: 0, B: 0, C: 0, D: 0, F: 0, W: 0 };
+    enrollments.forEach(e => {
+      const first = e.letter.charAt(0).toUpperCase();
+      if (gradeDist.hasOwnProperty(first)) gradeDist[first]++;
+      else if (first === 'W') gradeDist['W']++;
+    });
+
+    new Chart(ctxSLO, {
+      type: "bar",
+      data: {
+        labels: Object.keys(gradeDist),
+        datasets: [{ label: "Grade Distribution", data: Object.values(gradeDist), backgroundColor: ["#2e7d32", "#4caf50", "#C5963A", "#e65100", "#c62828", "#636e72"] }]
+      },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { title: { display: true, text: `Grade Distribution (${enrollments.length} enrollments)` } } }
+    });
+  } else {
+    new Chart(ctxSLO, { type: "bar", data: { labels: ["No data"], datasets: [{ label: "Avg Score", data: [0], backgroundColor: "#722F37" }] }, options: { responsive: true, maintainAspectRatio: true } });
+  }
+
+  // Average GPA by Program (from Populi)
   const ctxILO = document.getElementById("chartILODetail").getContext("2d");
-  new Chart(ctxILO, {
-    type: "bar",
-    data: {
-      labels: ["ILO 1", "ILO 2", "ILO 3"],
-      datasets: [{
-        label: "Avg Score",
-        data: [4.0, 3.9, 4.2],
-        backgroundColor: "#C5963A"
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: true }
-  });
+  if (typeof ALL_STUDENTS !== 'undefined') {
+    const progGPAs = {};
+    PROGRAMS.forEach(p => {
+      const students = ALL_STUDENTS.filter(s => s.degree && s.degree.split(',').map(d=>d.trim()).includes(p.id));
+      const gpas = students.map(s => s.cumGPA).filter(g => g > 0);
+      progGPAs[p.id] = gpas.length ? gpas.reduce((a,b) => a+b, 0) / gpas.length : 0;
+    });
+    new Chart(ctxILO, {
+      type: "bar",
+      data: {
+        labels: Object.keys(progGPAs),
+        datasets: [{ label: "Avg Cumulative GPA", data: Object.values(progGPAs).map(v => Math.round(v*100)/100), backgroundColor: "#C5963A" }]
+      },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { title: { display: true, text: "Average GPA by Program" } } }
+    });
+  } else {
+    new Chart(ctxILO, { type: "bar", data: { labels: ["No data"], datasets: [{ label: "Avg Score", data: [0], backgroundColor: "#C5963A" }] }, options: { responsive: true, maintainAspectRatio: true } });
+  }
 
+  // Enrollment Trend (from Populi historical)
   const ctxTrend = document.getElementById("chartTrend").getContext("2d");
-  new Chart(ctxTrend, {
-    type: "line",
-    data: {
-      labels: ["Q1", "Q2", "Q3", "Q4"],
-      datasets: [{
-        label: "Overall Avg",
-        data: [3.9, 4.0, 4.1, 4.2],
-        borderColor: "#722F37",
-        backgroundColor: "rgba(114, 47, 55, 0.1)",
-        tension: 0.4
-      }]
-    },
-    options: { responsive: true, maintainAspectRatio: true }
-  });
+  if (typeof HISTORICAL_SUMMARY !== 'undefined' && HISTORICAL_SUMMARY.enrollmentTrend && HISTORICAL_SUMMARY.enrollmentTrend.length > 0) {
+    const recent = HISTORICAL_SUMMARY.enrollmentTrend.slice(-18);
+    const labels = recent.map(t => {
+      const m = (t.term||'').match(/Module\s+(One|Two|Three|Four|Five|Six|Seven|Eight|Nine)/i);
+      const y = (t.term||'').match(/(\d{4})-(\d{4})/);
+      if (m && y) { const n = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9}[m[1].toLowerCase()]; return `M${n} '${y[2].slice(2)}`; }
+      return (t.term||'').slice(0,12);
+    });
+    new Chart(ctxTrend, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{ label: "Students per Module", data: recent.map(t => t.count), borderColor: "#722F37", backgroundColor: "rgba(114,47,55,0.1)", fill: true, tension: 0.4 }]
+      },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { title: { display: true, text: "Enrollment Trend" } } }
+    });
+  } else {
+    new Chart(ctxTrend, { type: "line", data: { labels: ["No data"], datasets: [{ label: "Overall Avg", data: [0], borderColor: "#722F37" }] }, options: { responsive: true, maintainAspectRatio: true } });
+  }
 }
 
 function renderResultsTable(responses) {
@@ -6469,31 +6565,54 @@ function renderDashProgress() {
 }
 
 function renderDashCharts() {
+  // Enrollment by Program (from Populi data)
+  const progColors = ["#722F37", "#C5963A", "#27ae60", "#e74c3c", "#2980b9", "#f39c12", "#9b59b6", "#1abc9c"];
+  let progLabels = PROGRAMS.map(p => p.id);
+  let progData = PROGRAMS.map(() => 0);
+
+  if (typeof DEMO_SUMMARY !== 'undefined' && DEMO_SUMMARY.enrollmentByProgram) {
+    progData = progLabels.map(id => DEMO_SUMMARY.enrollmentByProgram[id] || 0);
+  }
+
   const ctxResponses = document.getElementById("chartResponses").getContext("2d");
   new Chart(ctxResponses, {
     type: "doughnut",
     data: {
-      labels: PROGRAMS.map(p => p.id),
-      datasets: [{
-        data: PROGRAMS.map(() => Math.floor(Math.random() * 20) + 5),
-        backgroundColor: ["#722F37", "#C5963A", "#27ae60", "#e74c3c", "#2980b9", "#f39c12", "#9b59b6", "#1abc9c"]
-      }]
+      labels: progLabels,
+      datasets: [{ data: progData, backgroundColor: progColors }]
     },
-    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: "bottom" } } }
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: "bottom" }, title: { display: true, text: "Current Enrollment by Program" } } }
   });
+
+  // GPA Trend by Module (from Populi historical data)
+  let trendLabels = [];
+  let trendData = [];
+  if (typeof HISTORICAL_SUMMARY !== 'undefined' && HISTORICAL_SUMMARY.gpaTrend && HISTORICAL_SUMMARY.gpaTrend.length > 0) {
+    const recent = HISTORICAL_SUMMARY.gpaTrend.slice(-12);
+    trendLabels = recent.map(t => {
+      const m = (t.term || '').match(/Module\s+(One|Two|Three|Four|Five|Six|Seven|Eight|Nine)/i);
+      const y = (t.term || '').match(/(\d{4})-(\d{4})/);
+      if (m && y) {
+        const num = {one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9}[m[1].toLowerCase()];
+        return `M${num} '${y[2].slice(2)}`;
+      }
+      return (t.term || '').slice(0, 15);
+    });
+    trendData = recent.map(t => t.avgGPA);
+  }
 
   const ctxSLO = document.getElementById("chartSLOAvg").getContext("2d");
   new Chart(ctxSLO, {
     type: "bar",
     data: {
-      labels: ["Q1 2026", "Q2 2026", "Q3 2026", "Q4 2026"],
+      labels: trendLabels.length ? trendLabels : ["No data"],
       datasets: [{
-        label: "Avg SLO Score",
-        data: [3.8, 3.9, 4.0, 4.1],
+        label: "Avg GPA by Module",
+        data: trendData.length ? trendData : [0],
         backgroundColor: "#C5963A"
       }]
     },
-    options: { responsive: true, maintainAspectRatio: true }
+    options: { responsive: true, maintainAspectRatio: true, plugins: { title: { display: true, text: "GPA Trend by Module" } } }
   });
 }
 
@@ -6507,10 +6626,19 @@ function generateDashboardInsights() {
   document.getElementById("btnDashInsights").disabled = true;
   document.getElementById("dashAIOutput").innerHTML = '<div class="ai-loading"><div class="spinner"></div><span>Generating insights...</span></div>';
 
+  const enrollInfo = typeof DEMO_SUMMARY !== 'undefined' ? `
+Total Students: ${DEMO_SUMMARY.totalStudents}
+Avg GPA: ${DEMO_SUMMARY.avgGPA}
+Enrollment by Program: ${JSON.stringify(DEMO_SUMMARY.enrollmentByProgram)}
+Grade Distribution: ${JSON.stringify(DEMO_SUMMARY.gradeDistribution)}` : 'No enrollment data available';
+  const histInfo = typeof HISTORICAL_SUMMARY !== 'undefined' && HISTORICAL_SUMMARY.enrollmentTrend ?
+    `Enrollment Trend (last 6 modules): ${HISTORICAL_SUMMARY.enrollmentTrend.slice(-6).map(t => t.term + ': ' + t.count + ' students').join(', ')}` : '';
+
   const prompt = `Analyze this IE assessment data and provide SACSCOC-ready institutional insights:
 Total Programs: ${PROGRAMS.length}
-Survey Data: Placeholder data
-Suggest improvements and concerns.`;
+${enrollInfo}
+${histInfo}
+Provide specific observations about enrollment trends, academic performance, and areas for improvement.`;
 
   fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
