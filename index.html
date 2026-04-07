@@ -6024,6 +6024,7 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
 
   html += `</div></div>`;
 
+  // Enrollment & Retention — try Firebase first, fall back to Populi
   const enrollmentYear = cycle.split("-")[0];
   const enrollmentData = instData[enrollmentYear]?.['12'] || {};
   const enrollmentByProg = enrollmentData.enrollment || {};
@@ -6039,12 +6040,75 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
     const retentionRate = newEnroll > 0 ? ((retained / (newEnroll + retained)) * 100).toFixed(1) : "N/A";
     html += `<div><strong>Total Enrolled:</strong> ${newEnroll}</div>`;
     html += `<div><strong>Retention Rate:</strong> ${retentionRate}%</div>`;
+  } else if (typeof ALL_ENROLLMENTS !== 'undefined' && typeof ALL_STUDENTS !== 'undefined') {
+    // Populi fallback: compute from ALL_ENROLLMENTS for this cycle year
+    const cycleStart = cycle.split("-")[0];
+    const cycleEnd = cycle.split("-")[1] || (parseInt(cycleStart) + 1);
+    const cycleStartDate = `${cycleStart}-07-01`;
+    const cycleEndDate = `${cycleEnd}-06-30`;
+
+    // Find terms in this academic year
+    const cycleTermNames = (typeof ALL_TERMS !== 'undefined')
+      ? ALL_TERMS.filter(t => t.startDate >= cycleStartDate && t.startDate <= cycleEndDate).map(t => t.termName)
+      : [];
+
+    // Students enrolled in this program during this cycle
+    const progStudentIds = new Set();
+    const progEnrollments = ALL_ENROLLMENTS.filter(e => {
+      if (!cycleTermNames.includes(e.termName)) return false;
+      // Match by degree abbreviation (progId is like "BSML", "BSBA", etc.)
+      const studentDeg = ALL_STUDENTS.find(s => s.personId === e.personId);
+      if (studentDeg && studentDeg.degree) {
+        const degs = studentDeg.degree.split(',').map(d => d.trim());
+        if (degs.includes(progId)) {
+          progStudentIds.add(e.personId);
+          return true;
+        }
+      }
+      return false;
+    });
+
+    const totalEnrolled = progStudentIds.size;
+    const totalEnrollmentRecords = progEnrollments.length;
+
+    // Compute pass rate for this program
+    const graded = progEnrollments.filter(e => e.letter && e.finalized);
+    const passing = graded.filter(e => !['F', 'W', 'WF', 'I'].includes(e.letter));
+    const passRate = graded.length ? ((passing.length / graded.length) * 100).toFixed(1) : "N/A";
+
+    // Prior year students for retention
+    const priorStart = `${parseInt(cycleStart) - 1}-07-01`;
+    const priorEnd = `${cycleStart}-06-30`;
+    const priorTermNames = (typeof ALL_TERMS !== 'undefined')
+      ? ALL_TERMS.filter(t => t.startDate >= priorStart && t.startDate <= priorEnd).map(t => t.termName)
+      : [];
+    const priorStudentIds = new Set();
+    ALL_ENROLLMENTS.forEach(e => {
+      if (!priorTermNames.includes(e.termName)) return;
+      const studentDeg = ALL_STUDENTS.find(s => s.personId === e.personId);
+      if (studentDeg && studentDeg.degree && studentDeg.degree.split(',').map(d => d.trim()).includes(progId)) {
+        priorStudentIds.add(e.personId);
+      }
+    });
+    const retained = [...progStudentIds].filter(id => priorStudentIds.has(id)).length;
+    const retentionRate = priorStudentIds.size > 0 ? ((retained / priorStudentIds.size) * 100).toFixed(1) : "N/A";
+
+    if (totalEnrolled > 0) {
+      html += `<div><strong>Total Enrolled:</strong> ${totalEnrolled} students</div>`;
+      html += `<div><strong>Enrollments:</strong> ${totalEnrollmentRecords} course enrollments</div>`;
+      html += `<div><strong>Course Pass Rate:</strong> ${passRate}%</div>`;
+      html += `<div><strong>Retention Rate:</strong> ${retentionRate}%</div>`;
+      html += `<div style="margin-top:6px;font-size:0.8rem;color:#2196f3">Source: Populi (${cycleTermNames.length} modules)</div>`;
+    } else {
+      html += `<div style="color:#636e72">No enrollment data for ${progId} in ${cycle}</div>`;
+    }
   } else {
     html += `<div style="color:#636e72">No enrollment data available</div>`;
   }
 
   html += `</div></div>`;
 
+  // Academic Performance — try Firebase first, fall back to Populi
   const academicData = instData[enrollmentYear]?.['12']?.academic || {};
   html += `<div style="background:white;border-radius:8px;padding:16px;border:1px solid #dfe6e9">
     <h5 style="color:#722F37;margin-bottom:10px;font-weight:600">Academic Performance</h5>
@@ -6054,6 +6118,26 @@ function buildAssessmentDataSummary(progId, cycle, surveyData, instData, mapping
     const progAcad = academicData[progId];
     html += `<div><strong>Average GPA:</strong> ${(progAcad.gpa || 0).toFixed(2)}</div>`;
     html += `<div><strong>Course Completion:</strong> ${(progAcad.completion || 0).toFixed(1)}%</div>`;
+  } else if (typeof ALL_STUDENTS !== 'undefined') {
+    // Populi fallback: compute GPA and academic stats for this program
+    const progStudents = ALL_STUDENTS.filter(s => {
+      if (!s.degree) return false;
+      return s.degree.split(',').map(d => d.trim()).includes(progId);
+    });
+    const gpas = progStudents.map(s => s.cumGPA).filter(g => g > 0);
+    const avgGPA = gpas.length ? (gpas.reduce((a, b) => a + b, 0) / gpas.length) : 0;
+    const probation = progStudents.filter(s => s.cumGPA > 0 && s.cumGPA < 2.0).length;
+    const deansList = progStudents.filter(s => s.cumGPA >= 3.5).length;
+
+    if (progStudents.length > 0) {
+      html += `<div><strong>Average GPA:</strong> ${avgGPA.toFixed(2)}</div>`;
+      html += `<div><strong>Students:</strong> ${progStudents.length}</div>`;
+      html += `<div><strong>Dean's List (GPA ≥ 3.5):</strong> ${deansList}</div>`;
+      html += `<div><strong>Academic Probation (GPA < 2.0):</strong> ${probation}</div>`;
+      html += `<div style="margin-top:6px;font-size:0.8rem;color:#2196f3">Source: Populi (most recent data)</div>`;
+    } else {
+      html += `<div style="color:#636e72">No academic data for ${progId}</div>`;
+    }
   } else {
     html += `<div style="color:#636e72">No academic data available</div>`;
   }
