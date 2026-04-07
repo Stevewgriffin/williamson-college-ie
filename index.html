@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>if(typeof pdfjsLib!=='undefined')pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="demo-data.js"></script>
 <style>
@@ -736,6 +737,42 @@ textarea.form-textarea:focus { border-color:var(--gold); }
 
           <button class="btn-import" onclick="importGradebookData()" style="margin-top:16px">Import to IE System</button>
           <div id="gradebookStatus"></div>
+        </div>
+      </div>
+
+      <!-- SLO Assessment Document Upload -->
+      <div class="upload-card" style="border-left:4px solid #2196f3">
+        <div class="upload-card-header" onclick="toggleUploadCard(this)" style="background:#e3f2fd">
+          <span>📄 SLO Assessment Documents (AI-Scored)</span>
+          <span class="upload-card-toggle">▼</span>
+        </div>
+        <div class="upload-card-body">
+          <p class="card-description">Upload student SLO end-of-course assessment documents (.docx or .pdf). In Populi, go to the course → Assignments → "Student Learning Outcome Assessment" → click "Download All Assignment Files". Upload the individual files or the entire zip. Claude AI will read each document, score per-SLO proficiency, and save results.</p>
+
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+            <select class="form-select" id="sloUploadCourse" onchange="loadSLOCourseInfo()">
+              <option value="">Select Course...</option>
+            </select>
+            <select class="form-select" id="sloUploadTerm">
+            </select>
+          </div>
+
+          <div id="sloCourseInfo" style="display:none;margin-bottom:16px;padding:12px;background:#f8f9fa;border-radius:8px;font-size:0.85rem"></div>
+
+          <div class="upload-zone" id="sloDropZone">
+            <div class="file-input-wrapper">
+              <input type="file" id="sloFiles" accept=".docx,.pdf,.zip" multiple onchange="handleSLOFiles(event)">
+              <label class="file-input-label" for="sloFiles">Choose SLO Documents</label>
+            </div>
+            <p style="margin-top:12px;color:#636e72;font-size:0.85rem">Upload .docx or .pdf files (one per student), or a .zip of all files</p>
+            <div id="sloFileList" style="display:none;margin-top:12px"></div>
+          </div>
+
+          <button class="btn-import" onclick="processSLODocuments()" style="margin-top:16px;background:#2196f3" id="btnProcessSLO" disabled>
+            🤖 Score with AI
+          </button>
+          <div id="sloProcessingStatus"></div>
+          <div id="sloResults" style="display:none;margin-top:16px"></div>
         </div>
       </div>
 
@@ -8126,6 +8163,365 @@ function loadPopuliImportHistory() {
   });
 }
 
+// ============================================================
+// SLO DOCUMENT UPLOAD & AI SCORING
+// ============================================================
+let sloUploadedFiles = [];
+
+function initSLOUpload() {
+  // Populate course dropdown from ALL_COURSE_OFFERINGS
+  const courseSelect = document.getElementById('sloUploadCourse');
+  if (!courseSelect || courseSelect.options.length > 1) return;
+
+  if (typeof ALL_COURSE_OFFERINGS !== 'undefined') {
+    // Get unique courses with SLO assignments
+    const coursesWithSLO = new Set();
+    if (typeof ASSIGNMENT_DATA !== 'undefined') {
+      ASSIGNMENT_DATA.forEach(a => {
+        if (a.assignmentName.toLowerCase().includes('learning outcome') || a.assignmentName.toLowerCase().includes('slo')) {
+          coursesWithSLO.add(a.courseAbbrv);
+        }
+      });
+    }
+
+    // Get unique course names
+    const seen = new Set();
+    const courses = ALL_COURSE_OFFERINGS
+      .filter(co => co.numStudents > 0)
+      .sort((a, b) => a.courseAbbrv.localeCompare(b.courseAbbrv));
+
+    courses.forEach(co => {
+      const key = co.courseAbbrv;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const opt = document.createElement('option');
+      opt.value = key;
+      const hasSLO = coursesWithSLO.has(key) ? ' ✓ SLO' : '';
+      opt.textContent = `${key} - ${co.name}${hasSLO}`;
+      courseSelect.appendChild(opt);
+    });
+  }
+
+  // Populate term dropdown
+  const termSelect = document.getElementById('sloUploadTerm');
+  if (termSelect && termSelect.options.length === 0 && typeof ALL_TERMS !== 'undefined') {
+    const terms = ALL_TERMS.filter(t => t.studentCount > 0).sort((a, b) => b.startDate.localeCompare(a.startDate));
+    terms.slice(0, 20).forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.termName;
+      opt.textContent = t.termName;
+      termSelect.appendChild(opt);
+    });
+  }
+
+  // Setup drag-drop for SLO zone
+  setupDragDrop('sloDropZone', 'sloFiles', 'slo');
+}
+
+function loadSLOCourseInfo() {
+  const courseCode = document.getElementById('sloUploadCourse').value;
+  const infoDiv = document.getElementById('sloCourseInfo');
+  if (!courseCode) { infoDiv.style.display = 'none'; return; }
+
+  // Find course SLOs
+  const courseSLOs = (typeof COURSE_SLOS !== 'undefined') ? COURSE_SLOS[courseCode] : null;
+  let html = `<strong>${courseCode}</strong>`;
+
+  if (courseSLOs && courseSLOs.slos) {
+    html += ` — ${courseSLOs.slos.length} SLOs:`;
+    html += '<ul style="margin:8px 0 0 16px;padding:0">';
+    courseSLOs.slos.forEach((slo, i) => {
+      html += `<li style="margin:4px 0;font-size:0.8rem">${slo.text || slo.name || ('SLO ' + (i+1))}</li>`;
+    });
+    html += '</ul>';
+  } else {
+    // Check catalog description for SLOs
+    const catalog = (typeof COURSE_CATALOG !== 'undefined') ? COURSE_CATALOG[courseCode] : null;
+    if (catalog) {
+      html += `<div style="margin-top:6px;font-size:0.8rem;color:#636e72">${catalog.substring(0, 200)}...</div>`;
+    }
+  }
+
+  infoDiv.innerHTML = html;
+  infoDiv.style.display = 'block';
+}
+
+function handleSLOFiles(event) {
+  const files = event.target.files || event.dataTransfer?.files;
+  if (!files || files.length === 0) return;
+
+  sloUploadedFiles = [...files];
+  const listDiv = document.getElementById('sloFileList');
+  let html = `<strong>${sloUploadedFiles.length} file(s) selected:</strong><ul style="margin:4px 0 0 12px;font-size:0.85rem">`;
+  sloUploadedFiles.forEach(f => {
+    const icon = f.name.endsWith('.pdf') ? '📕' : (f.name.endsWith('.zip') ? '📦' : '📄');
+    html += `<li>${icon} ${f.name} (${(f.size/1024).toFixed(1)} KB)</li>`;
+  });
+  html += '</ul>';
+  listDiv.innerHTML = html;
+  listDiv.style.display = 'block';
+
+  document.getElementById('btnProcessSLO').disabled = false;
+}
+
+async function processSLODocuments() {
+  const courseCode = document.getElementById('sloUploadCourse').value;
+  const termName = document.getElementById('sloUploadTerm').value;
+  if (!courseCode) { showToast('Please select a course first'); return; }
+  if (sloUploadedFiles.length === 0) { showToast('Please upload SLO documents'); return; }
+
+  const statusEl = document.getElementById('sloProcessingStatus');
+  const resultsEl = document.getElementById('sloResults');
+  const btn = document.getElementById('btnProcessSLO');
+  btn.disabled = true;
+
+  // Get course SLOs for context
+  const courseSLOs = (typeof COURSE_SLOS !== 'undefined') ? COURSE_SLOS[courseCode] : null;
+  const sloList = courseSLOs && courseSLOs.slos
+    ? courseSLOs.slos.map((s, i) => `SLO ${i+1}: ${s.text || s.name}`).join('\n')
+    : 'SLOs not available — score based on what the student describes';
+
+  const allResults = [];
+  let processed = 0;
+
+  for (const file of sloUploadedFiles) {
+    processed++;
+    statusEl.innerHTML = `<div class="import-status loading">Processing ${processed}/${sloUploadedFiles.length}: ${file.name}...</div>`;
+
+    try {
+      // Read file content
+      let text = '';
+      if (file.name.endsWith('.docx')) {
+        text = await readDocxFile(file);
+      } else if (file.name.endsWith('.pdf')) {
+        text = await readPdfFileAsText(file);
+      } else if (file.name.endsWith('.zip')) {
+        statusEl.innerHTML = `<div class="import-status loading">Extracting zip file...</div>`;
+        showToast('Zip files not yet supported — please upload individual .docx or .pdf files');
+        continue;
+      } else {
+        text = await file.text();
+      }
+
+      if (!text || text.length < 50) {
+        allResults.push({ file: file.name, student: extractStudentName(file.name), error: 'Could not extract text from file', scores: {} });
+        continue;
+      }
+
+      // Send to Claude AI for scoring
+      const prompt = `You are scoring a Student Learning Outcome (SLO) end-of-course assessment for ${courseCode} at Williamson College.
+
+The course has these SLOs:
+${sloList}
+
+The student submitted this assessment document. For each SLO, evaluate whether the student provided:
+1. A valid artifact (course assignment they reference)
+2. A clear explanation of how the artifact demonstrates mastery of the SLO
+
+Score each SLO as:
+- 4 = Exemplary (clear artifact + thorough explanation demonstrating mastery)
+- 3 = Proficient (valid artifact + adequate explanation)
+- 2 = Developing (artifact present but weak explanation or unclear connection)
+- 1 = Beginning (minimal or no evidence)
+- 0 = Not submitted / no response for this SLO
+
+Return ONLY valid JSON in this format:
+{"student_name": "extracted from document", "scores": {"SLO 1": 4, "SLO 2": 3, ...}, "notes": "brief overall assessment"}
+
+Student's document text:
+${text.substring(0, 6000)}`;
+
+      const resp = await fetch('/.netlify/functions/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], max_tokens: 512 })
+      });
+
+      const data = await resp.json();
+      if (data.content && data.content[0]) {
+        const aiText = data.content[0].text;
+        try {
+          const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            allResults.push({
+              file: file.name,
+              student: parsed.student_name || extractStudentName(file.name),
+              scores: parsed.scores || {},
+              notes: parsed.notes || '',
+            });
+          } else {
+            allResults.push({ file: file.name, student: extractStudentName(file.name), error: 'AI response not parseable', raw: aiText, scores: {} });
+          }
+        } catch (e) {
+          allResults.push({ file: file.name, student: extractStudentName(file.name), error: 'JSON parse error', raw: aiText, scores: {} });
+        }
+      } else {
+        allResults.push({ file: file.name, student: extractStudentName(file.name), error: data.error?.message || 'API error', scores: {} });
+      }
+    } catch (err) {
+      allResults.push({ file: file.name, student: extractStudentName(file.name), error: err.message, scores: {} });
+    }
+  }
+
+  // Display results
+  displaySLOResults(allResults, courseCode, termName);
+  btn.disabled = false;
+  statusEl.innerHTML = `<div class="import-status success">Processed ${allResults.length} documents</div>`;
+}
+
+function extractStudentName(filename) {
+  // Try to extract student name from filename like "LastName, FirstName - SLO.docx"
+  const name = filename.replace(/\.(docx|pdf|txt)$/i, '').replace(/[-_]?\s*(slo|assessment|learning outcome).*$/i, '').trim();
+  return name || 'Unknown Student';
+}
+
+async function readDocxFile(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  // Use JSZip-like approach to extract text from docx
+  try {
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const docXml = await zip.file('word/document.xml').async('text');
+    // Extract text from XML
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(docXml, 'text/xml');
+    const texts = [];
+    const tNodes = xmlDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 't');
+    for (let i = 0; i < tNodes.length; i++) {
+      texts.push(tNodes[i].textContent);
+    }
+    return texts.join(' ');
+  } catch (e) {
+    console.warn('DOCX parse error:', e);
+    return '';
+  }
+}
+
+async function readPdfFileAsText(file) {
+  // Use pdf.js if available
+  if (typeof pdfjsLib !== 'undefined') {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      return text;
+    } catch (e) {
+      console.warn('PDF parse error:', e);
+      return '';
+    }
+  }
+  return '';
+}
+
+function displaySLOResults(results, courseCode, termName) {
+  const resultsEl = document.getElementById('sloResults');
+
+  // Collect all SLO keys
+  const allSLOs = new Set();
+  results.forEach(r => Object.keys(r.scores).forEach(k => allSLOs.add(k)));
+  const sloKeys = [...allSLOs].sort();
+
+  let html = `<div style="border:2px solid #2196f3;border-radius:10px;padding:20px;background:#f8f9fa">
+    <h4 style="color:#722F37;margin-bottom:4px">SLO Assessment Results — ${courseCode}</h4>
+    <p style="color:#636e72;font-size:0.85rem;margin-bottom:16px">${termName} • ${results.length} students scored</p>
+
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+      <thead><tr style="background:#722F37;color:white">
+        <th style="padding:10px;text-align:left">Student</th>`;
+
+  sloKeys.forEach(k => { html += `<th style="padding:10px;text-align:center">${k}</th>`; });
+  html += `<th style="padding:10px;text-align:center">Avg</th><th style="padding:10px;text-align:left">Notes</th></tr></thead><tbody>`;
+
+  results.forEach(r => {
+    const scores = sloKeys.map(k => r.scores[k] || 0);
+    const avg = scores.length ? (scores.reduce((a,b) => a+b, 0) / scores.length).toFixed(2) : '—';
+    const avgColor = avg >= 3 ? '#2e7d32' : (avg >= 2 ? '#e65100' : '#c62828');
+
+    html += `<tr style="border-bottom:1px solid #ddd"><td style="padding:10px;font-weight:600">${r.student}</td>`;
+    sloKeys.forEach(k => {
+      const score = r.scores[k] || 0;
+      const bg = score >= 3 ? '#e8f5e9' : (score >= 2 ? '#fff3e0' : (score > 0 ? '#ffebee' : '#f5f5f5'));
+      html += `<td style="padding:10px;text-align:center;background:${bg}">${score}</td>`;
+    });
+    html += `<td style="padding:10px;text-align:center;font-weight:600;color:${avgColor}">${avg}</td>`;
+    html += `<td style="padding:10px;font-size:0.8rem;color:#636e72">${r.error || r.notes || ''}</td></tr>`;
+  });
+
+  html += '</tbody></table></div>';
+
+  // Summary stats
+  const proficientCounts = {};
+  sloKeys.forEach(k => {
+    const scores = results.map(r => r.scores[k] || 0);
+    const met = scores.filter(s => s >= 3).length;
+    proficientCounts[k] = { met, total: results.length, pct: results.length ? ((met/results.length)*100).toFixed(0) : 0 };
+  });
+
+  html += `<div style="margin-top:16px;padding:12px;background:white;border-radius:8px;border:1px solid #ddd">
+    <strong>Proficiency Summary</strong> (Score ≥ 3 = Proficient)
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px">`;
+
+  sloKeys.forEach(k => {
+    const { met, total, pct } = proficientCounts[k];
+    const color = pct >= 70 ? '#2e7d32' : (pct >= 50 ? '#e65100' : '#c62828');
+    html += `<div style="text-align:center;padding:8px;border-radius:6px;background:#f8f9fa">
+      <div style="font-size:0.75rem;color:#636e72">${k}</div>
+      <div style="font-size:1.2rem;font-weight:700;color:${color}">${pct}%</div>
+      <div style="font-size:0.7rem;color:#636e72">${met}/${total} met</div>
+    </div>`;
+  });
+
+  html += `</div></div>`;
+
+  // Save button
+  html += `<button class="btn btn-primary" style="margin-top:16px" onclick="saveSLOResults('${courseCode}', '${termName}')">💾 Save Results to IE System</button>`;
+  html += '</div>';
+
+  resultsEl.innerHTML = html;
+  resultsEl.style.display = 'block';
+
+  // Store results globally for saving
+  window._sloResults = { results, courseCode, termName, proficientCounts, sloKeys };
+}
+
+function saveSLOResults(courseCode, termName) {
+  if (!window._sloResults) { showToast('No results to save'); return; }
+  const { results, proficientCounts, sloKeys } = window._sloResults;
+
+  const saveData = {
+    courseCode,
+    termName,
+    scoredAt: new Date().toISOString(),
+    scoredBy: currentUserName,
+    students: results.map(r => ({ student: r.student, file: r.file, scores: r.scores, notes: r.notes || r.error || '' })),
+    summary: proficientCounts,
+    sloKeys,
+  };
+
+  db.ref(`sloAssessments/${courseCode.replace(/\s+/g, '_')}/${termName.replace(/[\s:]/g, '_')}`).set(saveData, function(err) {
+    if (err) {
+      showToast('Error saving: ' + err.message);
+    } else {
+      showToast('SLO results saved successfully!');
+
+      // Also log to import history
+      db.ref('populiImports/' + Date.now()).set({
+        type: 'SLO Assessment',
+        importedBy: currentUserName,
+        importedAt: new Date().toISOString(),
+        module: termName,
+        recordCount: results.length,
+        summary: `${courseCode}: ${results.length} students scored, ${sloKeys.length} SLOs`
+      });
+    }
+  });
+}
+
 // Setup drag-and-drop
 function setupDragDrop(zoneId, fileInputId, fileType) {
   const zone = document.getElementById(zoneId);
@@ -8176,6 +8572,8 @@ document.addEventListener("DOMContentLoaded", function() {
   setupDragDrop("enrollmentDropZone", "enrollmentFile", "enrollment");
   setupDragDrop("gradebookDropZone", "gradebookFile", "gradebook");
   setupDragDrop("attendanceDropZone", "attendanceFile", "attendance");
+  setupDragDrop("sloDropZone", "sloFiles", "slo");
+  initSLOUpload();
 
   const enrollBtn = document.querySelector("button[onclick=\"importEnrollmentData()\"]");
   if (enrollBtn) {
