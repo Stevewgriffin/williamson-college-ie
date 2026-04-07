@@ -4987,6 +4987,139 @@ function closeMonth() {
 }
 
 function loadTrendsCharts(year, month) {
+  // Use Populi historical data if available, fall back to Firebase
+  const hasPopuliData = typeof HISTORICAL_SUMMARY !== 'undefined' && HISTORICAL_SUMMARY.enrollmentTrend && HISTORICAL_SUMMARY.enrollmentTrend.length > 0;
+
+  if (hasPopuliData) {
+    loadTrendsFromPopuli();
+  } else {
+    loadTrendsFromFirebase();
+  }
+}
+
+function loadTrendsFromPopuli() {
+  const trend = HISTORICAL_SUMMARY.enrollmentTrend || [];
+  const gpaTrendData = HISTORICAL_SUMMARY.gpaTrend || [];
+
+  // Use last 18 terms for a readable chart (or all if fewer)
+  const slice = Math.max(0, trend.length - 18);
+  const recentTrend = trend.slice(slice);
+  const recentGPA = gpaTrendData.slice(slice);
+
+  const labels = recentTrend.map(t => {
+    // Shorten label: "2024-2025: Module Six" -> "Mod 6 '25"
+    const name = t.term || '';
+    const moduleMatch = name.match(/Module\s+(One|Two|Three|Four|Five|Six|Seven|Eight|Nine)/i);
+    const yearMatch = name.match(/(\d{4})-(\d{4})/);
+    if (moduleMatch && yearMatch) {
+      const modNum = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9 }[moduleMatch[1].toLowerCase()];
+      return `M${modNum} '${yearMatch[2].slice(2)}`;
+    }
+    return name.length > 12 ? name.slice(0, 12) : name;
+  });
+
+  const enrollmentData = recentTrend.map(t => t.count);
+  const gpaData = recentGPA.map(t => t.avgGPA);
+
+  const chartConfig = {
+    type: "line",
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: true } }
+    }
+  };
+
+  // Enrollment Trend (from Populi)
+  const ctxE = document.getElementById("chartEnrollmentTrend").getContext("2d");
+  if (institutionalDataCharts.enrollment) institutionalDataCharts.enrollment.destroy();
+  institutionalDataCharts.enrollment = new Chart(ctxE, {
+    ...chartConfig,
+    data: {
+      labels,
+      datasets: [{
+        label: "Students Enrolled (per Module)",
+        data: enrollmentData,
+        borderColor: "#722F37",
+        backgroundColor: "rgba(114, 47, 55, 0.1)",
+        fill: true,
+        tension: 0.4
+      }]
+    }
+  });
+
+  // GPA Trend (from Populi)
+  const ctxG = document.getElementById("chartGPATrend").getContext("2d");
+  if (institutionalDataCharts.gpa) institutionalDataCharts.gpa.destroy();
+  institutionalDataCharts.gpa = new Chart(ctxG, {
+    ...chartConfig,
+    data: {
+      labels,
+      datasets: [{
+        label: "Average Cumulative GPA",
+        data: gpaData,
+        borderColor: "#2e7d32",
+        backgroundColor: "rgba(46, 125, 50, 0.1)",
+        fill: true,
+        tension: 0.4
+      }]
+    }
+  });
+
+  // Course Offerings Trend (use enrollment data to show courses per module)
+  const coursesPerTerm = recentTrend.map(t => {
+    const termInfo = (typeof ALL_TERMS !== 'undefined') ? ALL_TERMS.find(at => at.termName === t.term) : null;
+    return termInfo ? termInfo.courseCount : 0;
+  });
+  const ctxR = document.getElementById("chartRetentionTrend").getContext("2d");
+  if (institutionalDataCharts.retention) institutionalDataCharts.retention.destroy();
+  institutionalDataCharts.retention = new Chart(ctxR, {
+    ...chartConfig,
+    data: {
+      labels,
+      datasets: [{
+        label: "Course Offerings (per Module)",
+        data: coursesPerTerm,
+        borderColor: "#C5963A",
+        backgroundColor: "rgba(197, 150, 58, 0.1)",
+        fill: true,
+        tension: 0.4
+      }]
+    }
+  });
+
+  // Enrollment by Program Trend (stacked)
+  const programs = new Set();
+  recentTrend.forEach(t => {
+    const termInfo = (typeof ALL_TERMS !== 'undefined') ? ALL_TERMS.find(at => at.termName === t.term) : null;
+    if (termInfo && termInfo.enrollmentByDegree) Object.keys(termInfo.enrollmentByDegree).forEach(p => programs.add(p));
+  });
+  const programColors = { BSBA: "#722F37", BSML: "#C5963A", ADL: "#2e7d32", MAOL: "#1565c0", MABS: "#6a1b9a", MATS: "#e65100", MATBL: "#00695c", MAIL: "#ad1457" };
+  const datasets = [...programs].map(prog => ({
+    label: prog,
+    data: recentTrend.map(t => {
+      const termInfo = (typeof ALL_TERMS !== 'undefined') ? ALL_TERMS.find(at => at.termName === t.term) : null;
+      return (termInfo && termInfo.enrollmentByDegree) ? (termInfo.enrollmentByDegree[prog] || 0) : 0;
+    }),
+    borderColor: programColors[prog] || "#666",
+    backgroundColor: (programColors[prog] || "#666") + "20",
+    fill: false,
+    tension: 0.4
+  }));
+
+  const ctxF = document.getElementById("chartFinancialTrend").getContext("2d");
+  if (institutionalDataCharts.financial) institutionalDataCharts.financial.destroy();
+  institutionalDataCharts.financial = new Chart(ctxF, {
+    ...chartConfig,
+    data: { labels, datasets },
+    options: {
+      ...chartConfig.options,
+      plugins: { legend: { display: true, position: "bottom", labels: { boxWidth: 12, padding: 8 } } }
+    }
+  });
+}
+
+function loadTrendsFromFirebase() {
   const [y, m] = selectedMonth.split("-");
 
   db.ref("institutionalData").once("value", snap => {
